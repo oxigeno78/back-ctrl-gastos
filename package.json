@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "Backend API para sistema de control de gastos",
   "private": true,
-  "author": ["Ruben Bautista Mendoza", "Victoria Abril Magaña Gordillo"],
+  "author": "Ruben Bautista Mendoza",
   "license": "UNLICENSED",
+  "contributors": [
+    "Victoria Abril Magaña Gordillo"
+  ],
   "keywords": ["expense-tracker"],
   "main": "dist/server.js",
   "scripts": {

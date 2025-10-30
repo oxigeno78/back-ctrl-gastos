@@ -15,13 +15,14 @@ RUN adduser -S nodejs -u 1001
 COPY package*.json ./
 
 # Instalar dependencias de producción
-RUN npm ci --only=production && npm cache clean --force
+#RUN npm ci --only=production && npm cache clean --force
+RUN yarn
 
 # Copiar código fuente
 COPY . .
 
 # Compilar TypeScript
-RUN npm run build
+RUN yarn build
 
 # Cambiar ownership de archivos al usuario nodejs
 RUN chown -R nodejs:nodejs /app
@@ -39,4 +40,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:5000/api/v1.0.0/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Comando para iniciar la aplicación
-CMD ["dumb-init", "npm", "start"]
+CMD ["dumb-init", "yarn", "start"]
