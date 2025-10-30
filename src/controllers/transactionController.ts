@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { Transaction, ITransaction } from '../models/Transaction';
+import { Transaction } from '../models/Transaction';
 import { z } from 'zod';
+import { Types } from 'mongoose';
 
 // Esquemas de validación
 export const createTransactionSchema = z.object({
@@ -89,7 +90,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
 
     // Calcular estadísticas
     const stats = await Transaction.aggregate([
-      { $match: { userId: req.user!.id as any } },
+      { $match: { userId: new Types.ObjectId(req.user!.id) } },
       {
         $group: {
           _id: '$type',
@@ -152,7 +153,7 @@ export const getMonthlyStats = async (req: Request, res: Response, next: NextFun
     const stats = await Transaction.aggregate([
       {
         $match: {
-          userId: req.user!.id as any,
+          userId: new Types.ObjectId(req.user!.id),
           date: { $gte: startDate, $lte: endDate }
         }
       },
