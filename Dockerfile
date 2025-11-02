@@ -5,7 +5,7 @@ FROM node:20.19.5-alpine
 WORKDIR /app
 
 # Instalar dependencias del sistema necesarias
-RUN apk add --no-cache dumb-init
+RUN apk update && apk add --no-cache dumb-init git
 
 # Crear usuario no-root para seguridad
 RUN addgroup -g 1001 -S nodejs
