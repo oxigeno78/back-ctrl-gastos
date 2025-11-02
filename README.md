@@ -39,6 +39,26 @@ JWT_SECRET=supersecretkey
 PORT=5000
 NODE_ENV=development
 JWT_EXPIRES_IN=7d
+
+# Frontend y base de API
+FRONTEND_URL=http://localhost:3000
+APP_URL=http://localhost:5000
+API_BASE_PATH=/api/v1.0.0
+
+# Proveedor de email: smtp | ses
+EMAIL_PROVIDER=ses
+MAILER_FROM=noreply@example.com
+
+# Configuración SES (si EMAIL_PROVIDER=ses)
+AWS_REGION=us-east-1
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+
+# Configuración SMTP (si EMAIL_PROVIDER=smtp)
+SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+SMTP_PORT=465
+SMTP_USER=
+SMTP_PASS=
 ```
 
 ### 3. Ejecutar la aplicación
@@ -71,6 +91,8 @@ docker run -p 5000:5000 --env-file .env control-gastos-backend
 ### Autenticación
 - `POST /api/v1.0.0/auth/register` - Registro de usuario
 - `POST /api/v1.0.0/auth/login` - Login de usuario
+- `GET /api/v1.0.0/auth/verify` - Verificar correo electrónico
+- `POST /api/v1.0.0/auth/resend-verification` - Reenviar correo de verificación
 
 ### Transacciones
 - `GET /api/v1.0.0/transactions` - Obtener transacciones (requiere auth)
@@ -82,6 +104,24 @@ docker run -p 5000:5000 --env-file .env control-gastos-backend
 
 ### Health Check
 - `GET /api/v1.0.0/health` - Estado de la API
+
+## ✉️ Verificación de correo
+
+- **Flujo**
+  - **Registro**: se crea usuario con `isVerified=false` y se envía correo con link de verificación.
+  - **Verificación**: `GET {APP_URL}{API_BASE_PATH}/auth/verify?token=...&email=...` valida el token y activa la cuenta.
+  - **Login**: bloqueado con 403 si la cuenta no está verificada.
+  - **Reenvío**: `POST .../auth/resend-verification` envía un nuevo link.
+
+- **Configuración**
+  - `EMAIL_PROVIDER`: `smtp` (por defecto) o `ses` (AWS SES nativo).
+  - `MAILER_FROM`: remitente verificado en tu proveedor.
+  - Si `smtp` (incluye SES vía SMTP): `SMTP_HOST`, `SMTP_PORT` (465/587), `SMTP_USER`, `SMTP_PASS`.
+  - Si `ses` (SDK nativo): `AWS_REGION` y credenciales IAM por variables o rol.
+
+- **Notas**
+  - En sandbox de SES, solo puedes enviar a/desde identidades verificadas.
+  - Configura SPF/DKIM/DMARC en tu dominio para mejor entregabilidad.
 
 ## 🏗️ Estructura del Proyecto
 

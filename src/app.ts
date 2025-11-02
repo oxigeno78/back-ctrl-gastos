@@ -55,7 +55,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(corsErrorHandler);
 
 // Rutas principales
-app.use('/api/v1.0.0', routes);
+const apiBasePath = process.env.API_BASE_PATH || '/api/v1.0.0';
+app.use(apiBasePath, routes);
 
 // Middleware para rutas no encontradas
 app.use(notFound);

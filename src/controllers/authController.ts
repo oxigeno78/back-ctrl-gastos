@@ -2,6 +2,9 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { User, IUser } from '../models/User';
 import { z } from 'zod';
+import crypto from 'crypto';
+import * as nodemailer from 'nodemailer';
+import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses';
 
 // Esquemas de validación con Zod
 export const registerSchema = z.object({
@@ -33,6 +36,139 @@ export const generateToken = (payload: JWTPayload): string => {
   } as jwt.SignOptions);
 };
 
+// Helper para crear transporte de correo (SMTP o AWS SES)
+const createMailTransport = async (): Promise<nodemailer.Transporter> => {
+  const provider = (process.env.EMAIL_PROVIDER || 'smtp').toLowerCase();
+
+  if (provider === 'ses') {
+    const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION;
+    if (!region) {
+      throw new Error('AWS_REGION no configurado para usar SES');
+    }
+    const ses = new SESClient({ region });
+    // Nodemailer con AWS SDK v3 usando SendRawEmailCommand
+    const transporter = nodemailer.createTransport({
+      SES: { ses, aws: { SendRawEmailCommand } } as any
+    } as any);
+    return transporter;
+  }
+
+  // Default: SMTP
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
+    throw new Error('SMTP no está configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
+  }
+
+  return nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPass }
+  });
+}
+
+// Verificar correo
+export const verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { token, email } = req.query as { token?: string; email?: string };
+    if (!token || !email) {
+      res.status(400).json({ success: false, message: 'Token o email faltante' });
+      return;
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({ email: String(email).toLowerCase() })
+      .select('+emailVerificationToken +emailVerificationExpires');
+
+    if (!user || !user.emailVerificationToken || user.emailVerificationToken !== tokenHash) {
+      res.status(400).json({ success: false, message: 'Token inválido' });
+      return;
+    }
+
+    if (!user.emailVerificationExpires || user.emailVerificationExpires < new Date()) {
+      res.status(400).json({ success: false, message: 'Token expirado' });
+      return;
+    }
+
+    user.isVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+    await user.save();
+
+    const frontendBase = process.env.FRONTEND_URL;
+    if (frontendBase) {
+      const url = frontendBase.replace(/\/$/, '') + '/auth/login?verified=1';
+      res.redirect(302, url);
+      return;
+    }
+
+    res.json({ success: true, message: 'Correo verificado exitosamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Reenviar verificación
+export const resendVerification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const bodySchema = z.object({ email: z.string().email('Email inválido') });
+    const { email } = bodySchema.parse(req.body);
+
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .select('+emailVerificationToken +emailVerificationExpires');
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+      return;
+    }
+
+    if (user.isVerified) {
+      res.status(400).json({ success: false, message: 'La cuenta ya está verificada' });
+      return;
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    user.emailVerificationToken = tokenHash;
+    user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60); // 1h
+    await user.save();
+
+    const appUrl = process.env.APP_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const apiBase = process.env.API_BASE_PATH || '/api/v1.0.0';
+    const verifyLink = `${appUrl}${apiBase}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+
+    const smtpFrom = process.env.MAILER_FROM || 'no-reply@example.com';
+
+    console.log('reenviando Link de verificación:', verifyLink);
+
+    try {
+      const transporter = await createMailTransport();
+      await transporter.sendMail({
+        from: smtpFrom,
+        to: user.email,
+        subject: 'Confirma tu correo (reenvío)',
+        html: `<p>Hola ${user.name}, confirma tu correo: <a href="${verifyLink}">Confirmar</a></p>`
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'No se pudo enviar el correo de verificación', error: (err as Error).message });
+      return;
+    }
+
+    res.json({ success: true, message: 'Correo de verificación reenviado' });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ success: false, message: 'Datos inválidos', errors: error.errors });
+      return;
+    }
+    next(error);
+  }
+};
+
 // Controlador de registro
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -41,7 +177,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     const { name, email, password } = validatedData;
 
     // Verificar si el usuario ya existe
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email }).select('+emailVerificationToken +emailVerificationExpires');
     if (existingUser) {
       res.status(400).json({
         success: false,
@@ -51,25 +187,48 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     }
 
     // Crear nuevo usuario
-    const user = new User({ name, email, password });
+    const user = new User({ name, email, password, isVerified: false });
+
+    // Generar token de verificación
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    user.emailVerificationToken = tokenHash;
+    user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60); // 1h
+
     await user.save();
 
-    // Generar token
-    const token = generateToken({
-      userId: (user._id as any).toString(),
-      email: user.email
-    });
+    // Construir link de verificación
+    const appUrl = process.env.APP_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const apiBase = process.env.API_BASE_PATH || '/api/v1.0.0';
+    const verifyLink = `${appUrl}${apiBase}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+    console.log('appUrl', appUrl);
+    console.log('apiBase', apiBase);
+    console.log('verifyLink', verifyLink);
+
+    // Enviar email de verificación
+    try {
+      const smtpFrom = process.env.MAILER_FROM || 'no-reply@example.com';
+      const transporter = await createMailTransport();
+      await transporter.sendMail({
+        from: smtpFrom,
+        to: user.email,
+        subject: 'Confirma tu correo',
+        html: `<p>Hola ${user.name}, confirma tu correo haciendo clic aquí: <a href="${verifyLink}">Confirmar</a></p>`
+      });
+    } catch (mailErr) {
+      console.error('Error enviando email de verificación:', mailErr);
+    }
 
     res.status(201).json({
       success: true,
-      message: 'Usuario registrado exitosamente',
+      message: 'Registro exitoso. Revisa tu correo para confirmar tu cuenta.',
       data: {
         user: {
           id: (user._id as any).toString(),
           name: user.name,
-          email: user.email
-        },
-        token
+          email: user.email,
+          isVerified: user.isVerified
+        }
       }
     });
   } catch (error) {
@@ -108,6 +267,15 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
+      });
+      return;
+    }
+
+    // Bloquear si no está verificado
+    if (!user.isVerified) {
+      res.status(403).json({
+        success: false,
+        message: 'Tu cuenta no está verificada. Revisa tu correo o solicita reenvío de verificación.'
       });
       return;
     }

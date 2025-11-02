@@ -5,6 +5,9 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
+  isVerified: boolean;
+  emailVerificationToken?: string | null;
+  emailVerificationExpires?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -30,6 +33,20 @@ const userSchema = new Schema<IUser>({
     type: String,
     required: [true, 'La contraseña es requerida'],
     minlength: [6, 'La contraseña debe tener al menos 6 caracteres']
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: {
+    type: String,
+    default: null,
+    select: false
+  },
+  emailVerificationExpires: {
+    type: Date,
+    default: null,
+    select: false
   }
 }, {
   timestamps: true,

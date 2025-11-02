@@ -8,7 +8,9 @@
   "contributors": [
     "Victoria Abril Magaña Gordillo"
   ],
-  "keywords": ["expense-tracker"],
+  "keywords": [
+    "expense-tracker"
+  ],
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",
@@ -17,26 +19,29 @@
     "test": "jest"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^8.0.3",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
+    "client-ses": "aws-sdk/client-ses",
     "cors": "^2.8.5",
-    "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
     "dotenv": "^16.3.1",
-    "zod": "^3.22.4",
-    "express-rate-limit": "^7.1.5"
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.3",
+    "morgan": "^1.10.0",
+    "nodemailer": "^7.0.10",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.10.4",
     "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.5",
     "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
     "@types/morgan": "^1.9.9",
-    "typescript": "^5.3.3",
+    "@types/node": "^20.10.4",
+    "@types/nodemailer": "^7.0.3",
     "nodemon": "^3.0.2",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }
