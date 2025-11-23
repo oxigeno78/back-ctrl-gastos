@@ -19,6 +19,15 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'La contraseña es requerida')
 });
 
+export const verifySchema = z.object({
+  token: z.string(),
+  email: z.string().email('Email inválido')
+});
+
+export const resendSchema = z.object({
+  email: z.string().email('Email inválido')
+});
+
 // Interfaz para el payload del JWT
 export interface JWTPayload {
   userId: string;
@@ -319,7 +328,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const logoutUser = loginSchema.parse(req.body);
+    const logoutUser = resendSchema.parse(req.body);
     const { email } = logoutUser;
     const user = await User.findOne({ email }).select('+lastLogoutAt');
     console.log('user', user);
