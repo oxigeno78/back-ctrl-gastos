@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
+import sgMail from '@sendgrid/mail';
 
 // Esquemas de validación con Zod
 export const registerSchema = z.object({
@@ -49,6 +50,34 @@ export const generateToken = (payload: JWTPayload): string => {
 // Helper para crear transporte de correo (SMTP o AWS SES)
 const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   const provider = (process.env.EMAIL_PROVIDER || 'smtp').toLowerCase();
+
+  if (provider === 'sendgrid') {
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (!apiKey) {
+      throw new Error('SENDGRID_API_KEY no está configurado para usar SendGrid');
+    }
+
+    sgMail.setApiKey(apiKey);
+
+    const transporter = {
+      // Adaptador simple para imitar nodemailer Transporter
+      sendMail: async (options: nodemailer.SendMailOptions) => {
+        const msg = {
+          to: options.to as any,
+          from: (options.from as any) || process.env.MAILER_FROM || 'no-reply@example.com',
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+        } as sgMail.MailDataRequired;
+
+        await sgMail.send(msg);
+
+        return {} as any;
+      },
+    } as any as nodemailer.Transporter;
+
+    return transporter;
+  }
 
   if (provider === 'ses') {
     const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION;
