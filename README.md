@@ -42,7 +42,7 @@ JWT_EXPIRES_IN=7d
 
 # Frontend y base de API
 FRONTEND_URL=http://localhost:3000
-APP_URL=http://localhost:5000
+API_URL_BASE=http://localhost
 API_BASE_PATH=/api/v1.0.0
 
 # Proveedor de email: smtp | ses
@@ -109,7 +109,7 @@ docker run -p 5000:5000 --env-file .env control-gastos-backend
 
 - **Flujo**
   - **Registro**: se crea usuario con `isVerified=false` y se envía correo con link de verificación.
-  - **Verificación**: `GET {APP_URL}{API_BASE_PATH}/auth/verify?token=...&email=...` valida el token y activa la cuenta.
+  - **Verificación**: `GET {API_URL_BASE}{API_BASE_PATH}/auth/verify?token=...&email=...` valida el token y activa la cuenta.
   - **Login**: bloqueado con 403 si la cuenta no está verificada.
   - **Reenvío**: `POST .../auth/resend-verification` envía un nuevo link.
 

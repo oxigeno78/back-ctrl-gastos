@@ -8,6 +8,10 @@ export interface IUser extends Document {
   isVerified: boolean;
   emailVerificationToken?: string | null;
   emailVerificationExpires?: Date | null;
+  passwordResetToken?: string | null;
+  passwordResetExpires?: Date | null;
+  lastLoginAt?: Date | null;
+  lastLogoutAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -44,6 +48,16 @@ const userSchema = new Schema<IUser>({
     select: false
   },
   emailVerificationExpires: {
+    type: Date,
+    default: null,
+    select: false
+  },
+  lastLoginAt: {
+    type: Date,
+    default: null,
+    select: false
+  },
+  lastLogoutAt: {
     type: Date,
     default: null,
     select: false

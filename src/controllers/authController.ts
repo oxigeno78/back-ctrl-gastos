@@ -138,7 +138,7 @@ export const resendVerification = async (req: Request, res: Response, next: Next
     user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60); // 1h
     await user.save();
 
-    const appUrl = process.env.APP_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const appUrl = process.env.API_URL_BASE|| `http://localhost:${process.env.PORT || 5000}`;
     const apiBase = process.env.API_BASE_PATH || '/api/v1.0.0';
     const verifyLink = `${appUrl}${apiBase}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
@@ -198,7 +198,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     await user.save();
 
     // Construir link de verificación
-    const appUrl = process.env.APP_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const appUrl = process.env.API_URL_BASE|| `http://localhost:${process.env.PORT || 5000}`;
     const apiBase = process.env.API_BASE_PATH || '/api/v1.0.0';
     const verifyLink = `${appUrl}${apiBase}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
     console.log('appUrl', appUrl);
@@ -286,6 +286,9 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       email: user.email
     });
 
+    user.lastLoginAt = new Date();
+    await user.save();
+
     res.json({
       success: true,
       message: 'Login exitoso',
@@ -307,6 +310,25 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       });
       return;
     }
+    next(error);
+  }
+};
+
+export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const logoutUser = loginSchema.parse(req.body);
+    const { email } = logoutUser;
+    const user = await User.findOne({ email }).select('+lastLogoutAt');
+    if (user) {
+      user.lastLogoutAt = new Date();
+      await user.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Logout exitoso'
+    });
+  } catch (error) {
     next(error);
   }
 };
@@ -362,6 +384,46 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       });
       return;
     }
+    next(error);
+  }
+};
+
+export const recoveryUserPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+      return;
+    }
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    user.passwordResetToken = tokenHash;
+    user.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 60); // 1h
+    await user.save();
+    const appUrl = process.env.API_URL_BASE|| `http://localhost:${process.env.PORT || 5000}`;
+    const apiBase = process.env.API_BASE_PATH || '/api/v1.0.0';
+    const resetLink = `${appUrl}${apiBase}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+    const smtpFrom = process.env.MAILER_FROM || 'no-reply@example.com';
+    try {
+      const transporter = await createMailTransport();
+      await transporter.sendMail({
+        from: smtpFrom,
+        to: user.email,
+        subject: 'Restablece tu contraseña',
+        html: `<p>Hola ${user.name}, restablece tu contraseña haciendo clic aquí: <a href="${resetLink}">Restablecer</a></p>`
+      });
+    } catch (mailErr) {
+      console.error('Error enviando email de restablecimiento de contraseña:', mailErr);
+    }
+    res.json({
+      success: true,
+      message: 'Correo de restablecimiento de contraseña enviado'
+    });
+  } catch (error) {
     next(error);
   }
 };
