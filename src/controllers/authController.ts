@@ -4,6 +4,7 @@ import { User, IUser } from '../models/User';
 import { z } from 'zod';
 import crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 
 // Esquemas de validación con Zod
@@ -54,10 +55,10 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   }
 
   // Default: SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
-  const smtpHost = process.env.SMTP_HOST && process.env.SMTP_HOST != '' ? process.env.SMTP_HOST : 'smtp.gmail.com';
-  const smtpPort = process.env.SMTP_PORT && process.env.SMTP_PORT != '' ? parseInt(process.env.SMTP_PORT, 587) : undefined;
-  const smtpUser = process.env.SMTP_USER && process.env.SMTP_USER != '' ? process.env.SMTP_USER : 'oxigeno78@gmail.com';
-  const smtpPass = process.env.SMTP_PASS && process.env.SMTP_PASS != '' ? process.env.SMTP_PASS : 'fhgnqeanjxgjnehd';
+  const smtpHost = 'smtp.gmail.com';
+  const smtpPort = 587;
+  const smtpUser = 'oxigeno78@gmail.com';
+  const smtpPass = 'fhgnqeanjxgjnehd';
 
   if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
     console.error(smtpHost, smtpPort, smtpUser, smtpPass);
@@ -67,10 +68,10 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   return nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
-    secure: smtpPort === 465,
+    secure: false,
     auth: { user: smtpUser, pass: smtpPass },
     debug: process.env.MAILER_DEBUG === 'true'
-  });
+  } as SMTPTransport.Options);
 }
 
 // Verificar correo
