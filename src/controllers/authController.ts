@@ -65,19 +65,19 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
 
   // Default: SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
   const smtpHost = process.env.SMTP_HOST && process.env.SMTP_HOST != '' ? process.env.SMTP_HOST : 'smtp.gmail.com';
-  const smtpPort = process.env.SMTP_PORT && process.env.SMTP_PORT != '' ? parseInt(process.env.SMTP_PORT, 587) : undefined;
+  const smtpPort = process.env.SMTP_PORT && !isNaN(parseInt(process.env.SMTP_PORT)) ? parseInt(process.env.SMTP_PORT) : undefined;
   const smtpUser = process.env.SMTP_USER && process.env.SMTP_USER != '' ? process.env.SMTP_USER : 'oxigeno78@gmail.com';
   const smtpPass = process.env.SMTP_PASS && process.env.SMTP_PASS != '' ? process.env.SMTP_PASS : 'fhgnqeanjxgjnehd';
 
   if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
-    console.error(smtpHost, smtpPort, smtpUser, smtpPass);
+    console.error(smtpHost, `${smtpPort}, (${process.env.SMTP_PORT})` , smtpUser, smtpPass);
     throw new Error('SMTP no está configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
   }
 
   return nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
-    secure: false,
+    secure: smtpPort === 465,
     auth: { user: smtpUser, pass: smtpPass },
     debug: process.env.MAILER_DEBUG === 'true'
   } as SMTPTransport.Options);
@@ -331,11 +331,11 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
     const logoutUser = resendSchema.parse(req.body);
     const { email } = logoutUser;
     const user = await User.findOne({ email }).select('+lastLogoutAt');
-    console.log('user', user);
     if (user) {
       user.lastLogoutAt = new Date();
       await user.save();
     }
+    console.log('user', user);
 
     res.json({
       success: true,
