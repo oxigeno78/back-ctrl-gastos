@@ -55,7 +55,7 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
 
   // Default: SMTP
   const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined;
+  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 587) : undefined;
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
 
@@ -67,7 +67,8 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
     host: smtpHost,
     port: smtpPort,
     secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass }
+    auth: { user: smtpUser, pass: smtpPass },
+    debug: process.env.MAILER_DEBUG === 'true'
   });
 }
 
@@ -319,6 +320,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
     const logoutUser = loginSchema.parse(req.body);
     const { email } = logoutUser;
     const user = await User.findOne({ email }).select('+lastLogoutAt');
+    console.log('user', user);
     if (user) {
       user.lastLogoutAt = new Date();
       await user.save();
