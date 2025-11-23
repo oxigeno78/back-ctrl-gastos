@@ -40,55 +40,9 @@
     "@smithy/util-utf8" "^2.0.0"
     tslib "^2.6.2"
 
-"@aws-sdk/client-ses@^3.844.0":
+"@aws-sdk/client-sesv2@^3.670.0", "@aws-sdk/client-sesv2@^3.839.0":
   version "3.922.0"
-  resolved "https://registry.yarnpkg.com/@aws-sdk/client-ses/-/client-ses-3.922.0.tgz#b7559883ef0a191f873b706a4983a31aaf02df44"
-  integrity sha512-zZTOeyMk2BmqRETlnw9C4DXKGHjwzS4Bd8SmsaP1vBcFK6iIQHByhL1+Z4GGDUrxY5CdUmZYgmSOGh6ROL9r5w==
-  dependencies:
-    "@aws-crypto/sha256-browser" "5.2.0"
-    "@aws-crypto/sha256-js" "5.2.0"
-    "@aws-sdk/core" "3.922.0"
-    "@aws-sdk/credential-provider-node" "3.922.0"
-    "@aws-sdk/middleware-host-header" "3.922.0"
-    "@aws-sdk/middleware-logger" "3.922.0"
-    "@aws-sdk/middleware-recursion-detection" "3.922.0"
-    "@aws-sdk/middleware-user-agent" "3.922.0"
-    "@aws-sdk/region-config-resolver" "3.922.0"
-    "@aws-sdk/types" "3.922.0"
-    "@aws-sdk/util-endpoints" "3.922.0"
-    "@aws-sdk/util-user-agent-browser" "3.922.0"
-    "@aws-sdk/util-user-agent-node" "3.922.0"
-    "@smithy/config-resolver" "^4.4.1"
-    "@smithy/core" "^3.17.2"
-    "@smithy/fetch-http-handler" "^5.3.5"
-    "@smithy/hash-node" "^4.2.4"
-    "@smithy/invalid-dependency" "^4.2.4"
-    "@smithy/middleware-content-length" "^4.2.4"
-    "@smithy/middleware-endpoint" "^4.3.6"
-    "@smithy/middleware-retry" "^4.4.6"
-    "@smithy/middleware-serde" "^4.2.4"
-    "@smithy/middleware-stack" "^4.2.4"
-    "@smithy/node-config-provider" "^4.3.4"
-    "@smithy/node-http-handler" "^4.4.4"
-    "@smithy/protocol-http" "^5.3.4"
-    "@smithy/smithy-client" "^4.9.2"
-    "@smithy/types" "^4.8.1"
-    "@smithy/url-parser" "^4.2.4"
-    "@smithy/util-base64" "^4.3.0"
-    "@smithy/util-body-length-browser" "^4.2.0"
-    "@smithy/util-body-length-node" "^4.2.1"
-    "@smithy/util-defaults-mode-browser" "^4.3.5"
-    "@smithy/util-defaults-mode-node" "^4.2.7"
-    "@smithy/util-endpoints" "^3.2.4"
-    "@smithy/util-middleware" "^4.2.4"
-    "@smithy/util-retry" "^4.2.4"
-    "@smithy/util-utf8" "^4.2.0"
-    "@smithy/util-waiter" "^4.2.4"
-    tslib "^2.6.2"
-
-"@aws-sdk/client-sesv2@^3.839.0":
-  version "3.922.0"
-  resolved "https://registry.npmjs.org/@aws-sdk/client-sesv2/-/client-sesv2-3.922.0.tgz"
+  resolved "https://registry.yarnpkg.com/@aws-sdk/client-sesv2/-/client-sesv2-3.922.0.tgz#5231ba3f3c458f97a4aa17cd7ec492242c1baff4"
   integrity sha512-cowHCdzir4KmT/MoRyp2RV3BAebjcpiyKU1pidu2D1lI87iGXlxNG7KXJ0W8mjQoGpKa2XcihDY/mtqd/6uVlA==
   dependencies:
     "@aws-crypto/sha256-browser" "5.2.0"
@@ -937,15 +891,6 @@
     "@smithy/util-buffer-from" "^4.2.0"
     tslib "^2.6.2"
 
-"@smithy/util-waiter@^4.2.4":
-  version "4.2.4"
-  resolved "https://registry.yarnpkg.com/@smithy/util-waiter/-/util-waiter-4.2.4.tgz#a28b7835aacd82ae2d10da5af5bf21b3c21b34ac"
-  integrity sha512-roKXtXIC6fopFvVOju8VYHtguc/jAcMlK8IlDOHsrQn0ayMkHynjm/D2DCMRf7MJFXzjHhlzg2edr3QPEakchQ==
-  dependencies:
-    "@smithy/abort-controller" "^4.2.4"
-    "@smithy/types" "^4.8.1"
-    tslib "^2.6.2"
-
 "@smithy/uuid@^1.1.0":
   version "1.1.0"
   resolved "https://registry.npmjs.org/@smithy/uuid/-/uuid-1.1.0.tgz"
@@ -1254,12 +1199,6 @@ chokidar@^3.5.2:
     readdirp "~3.6.0"
   optionalDependencies:
     fsevents "~2.3.2"
-
-client-ses@aws-sdk/client-ses:
-  version "3.844.0"
-  resolved "https://codeload.github.com/aws-sdk/client-ses/tar.gz/526d8499803b3764304966f9cb26cb623a470f3c"
-  dependencies:
-    "@aws-sdk/client-ses" "^3.844.0"
 
 concat-map@0.0.1:
   version "0.0.1"

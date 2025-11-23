@@ -4,7 +4,7 @@ import { User, IUser } from '../models/User';
 import { z } from 'zod';
 import crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
-import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses';
+import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 
 // Esquemas de validación con Zod
 export const registerSchema = z.object({
@@ -45,10 +45,10 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
     if (!region) {
       throw new Error('AWS_REGION no configurado para usar SES');
     }
-    const ses = new SESClient({ region });
-    // Nodemailer con AWS SDK v3 usando SendRawEmailCommand
+    const ses = new SESv2Client({ region });
+    // Nodemailer con AWS SDK v3 (SESv2) usando SendEmailCommand
     const transporter = nodemailer.createTransport({
-      SES: { ses, aws: { SendRawEmailCommand } } as any
+      SES: { ses, aws: { SendEmailCommand } } as any
     } as any);
     return transporter;
   }

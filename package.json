@@ -19,8 +19,8 @@
     "test": "jest"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.670.0",
     "bcryptjs": "^2.4.3",
-    "client-ses": "aws-sdk/client-ses",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
