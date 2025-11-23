@@ -65,6 +65,10 @@ app.use(notFound);
 // Middleware centralizado de manejo de errores
 app.use(errorHandler);
 
+app.get('/', (req, res) => {
+  res.json({ message: 'API funcionando correctamente' });
+});
+
 // Función para conectar a MongoDB
 const connectDB = async () => {
   try {
