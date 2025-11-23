@@ -53,11 +53,11 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
     return transporter;
   }
 
-  // Default: SMTP
-  const smtpHost = process.env.SMTP_HOST;
+  // Default: SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
   const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 587) : undefined;
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
+  const smtpUser = process.env.SMTP_USER || 'oxigeno78@gmail.com';
+  const smtpPass = process.env.SMTP_PASS || 'fhgnqeanjxgjnehd';
 
   if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
     throw new Error('SMTP no está configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
