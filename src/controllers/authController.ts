@@ -55,10 +55,10 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   }
 
   // Default: SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
-  const smtpHost = 'smtp.gmail.com';
-  const smtpPort = 587;
-  const smtpUser = 'oxigeno78@gmail.com';
-  const smtpPass = 'fhgnqeanjxgjnehd';
+  const smtpHost = process.env.SMTP_HOST && process.env.SMTP_HOST != '' ? process.env.SMTP_HOST : 'smtp.gmail.com';
+  const smtpPort = process.env.SMTP_PORT && process.env.SMTP_PORT != '' ? parseInt(process.env.SMTP_PORT, 587) : undefined;
+  const smtpUser = process.env.SMTP_USER && process.env.SMTP_USER != '' ? process.env.SMTP_USER : 'oxigeno78@gmail.com';
+  const smtpPass = process.env.SMTP_PASS && process.env.SMTP_PASS != '' ? process.env.SMTP_PASS : 'fhgnqeanjxgjnehd';
 
   if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
     console.error(smtpHost, smtpPort, smtpUser, smtpPass);

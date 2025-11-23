@@ -22,6 +22,8 @@ const allowedOrigins = [
   process.env.FRONTEND_URL
 ].filter(Boolean); // Eliminar valores undefined
 
+app.set('trust proxy', true);
+
 app.use(cors({
   origin: (origin, callback) => {
     // Permitir requests sin origin (como mobile apps o curl requests)
