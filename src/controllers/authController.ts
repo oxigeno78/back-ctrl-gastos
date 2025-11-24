@@ -13,12 +13,14 @@ import sgMail from '@sendgrid/mail';
 export const registerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(50, 'El nombre no puede exceder 50 caracteres'),
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido')
 });
 
 export const loginSchema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(1, 'La contraseña es requerida')
+  password: z.string().min(1, 'La contraseña es requerida'),
+  recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido')
 });
 
 export const verifySchema = z.object({
@@ -29,6 +31,34 @@ export const verifySchema = z.object({
 export const resendSchema = z.object({
   email: z.string().email('Email inválido')
 });
+
+const verifyRecaptcha = async (token: string): Promise<boolean> => {
+  const secret = process.env.RECAPTCHA_SECRET_KEY;
+
+  if (!secret) {
+    throw new Error('RECAPTCHA_SECRET_KEY no está configurado');
+  }
+
+  const params = new URLSearchParams();
+  params.append('secret', secret);
+  params.append('response', token);
+
+  const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params.toString()
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error verificando reCAPTCHA: ${response.status}`);
+  }
+
+  const data = await response.json() as { success: boolean; score?: number; action?: string; ['error-codes']?: string[] };
+
+  return Boolean(data.success);
+};
 
 export const resetPasswordSchema = z.object({
   token: z.string(),
@@ -222,7 +252,16 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   try {
     // Validar datos de entrada
     const validatedData = registerSchema.parse(req.body);
-    const { name, email, password } = validatedData;
+    const { name, email, password, recaptchaToken } = validatedData;
+
+    const recaptchaValid = await verifyRecaptcha(recaptchaToken);
+    if (!recaptchaValid) {
+      res.status(400).json({
+        success: false,
+        message: 'Falló la validación de reCAPTCHA'
+      });
+      return;
+    }
 
     // Verificar si el usuario ya existe
     const existingUser = await User.findOne({ email }).select('+emailVerificationToken +emailVerificationExpires');
@@ -297,7 +336,16 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
   try {
     // Validar datos de entrada
     const validatedData = loginSchema.parse(req.body);
-    const { email, password } = validatedData;
+    const { email, password, recaptchaToken } = validatedData;
+
+    const recaptchaValid = await verifyRecaptcha(recaptchaToken);
+    if (!recaptchaValid) {
+      res.status(400).json({
+        success: false,
+        message: 'Falló la validación de reCAPTCHA'
+      });
+      return;
+    }
 
     // Buscar usuario por email
     const user = await User.findOne({ email }).select('+password');
