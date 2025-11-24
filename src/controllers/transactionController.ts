@@ -23,6 +23,18 @@ export const getTransactionsSchema = z.object({
   endDate: z.string().datetime().optional()
 });
 
+export const getTransactionByIdSchema = z.object({
+  _id: z.string().min(1, 'El ID es requerido')
+});
+
+export const updateTransactionSchema = z.object({
+  type: z.enum(['income', 'expense']).optional(),
+  amount: z.number().positive('El monto debe ser mayor a 0').optional(),
+  category: z.string().min(1, 'La categoría es requerida').max(50, 'La categoría no puede exceder 50 caracteres').optional(),
+  description: z.string().min(1, 'La descripción es requerida').max(200, 'La descripción no puede exceder 200 caracteres').optional(),
+  date: z.string().datetime().optional()
+});
+
 // Crear nueva transacción
 export const createTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -54,6 +66,67 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
       });
       return;
     }
+    next(error);
+  }
+};
+
+// Obtener transacción por ID
+export const getTransactionById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const transaction = await Transaction.findById(req.params._id);
+    if (!transaction) {
+      res.status(404).json({
+        success: false,
+        message: 'Transacción no encontrada'
+      });
+      return;
+    }
+    res.json({
+      success: true,
+      data: transaction
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Actualizar transacción por ID
+export const updateTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const transaction = await Transaction.findByIdAndUpdate(req.params._id, req.body, { new: true });
+    if (!transaction) {
+      res.status(404).json({
+        success: false,
+        message: 'Transacción no encontrada'
+      });
+      return;
+    }
+    res.json({
+      success: true,
+      data: transaction
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Eliminar transacción por ID
+export const deleteTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { _id } = getTransactionByIdSchema.parse(req.params);
+    const transaction = await Transaction.findByIdAndDelete(_id);
+    if (!transaction) {
+      res.status(404).json({
+        success: false,
+        message: 'Transacción no encontrada'
+      });
+      return;
+    }
+    res.json({
+      success: true,
+      data: transaction
+    });
+  } catch (error) {
     next(error);
   }
 };
