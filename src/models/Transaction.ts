@@ -9,6 +9,7 @@ export interface ITransaction extends Document {
   date: Date;
   createdAt: Date;
   updatedAt: Date;
+  deleted: boolean;
 }
 
 const transactionSchema = new Schema<ITransaction>({
@@ -46,6 +47,10 @@ const transactionSchema = new Schema<ITransaction>({
     type: Date,
     required: [true, 'La fecha es requerida'],
     default: Date.now
+  },
+  deleted: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { User, IUser } from '../models/User';
+import { Transaction } from '../models/Transaction';
 import { z } from 'zod';
 import crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
@@ -513,6 +514,43 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
   } catch (error) {
     console.log('[AUTH | resetPassword] error: ', error);
     console.log('[AUTH | resetPassword] body: ', req.body);
+    next(error);
+  }
+};
+// Eliminar cuenta de usuario y sus transacciones asociadas
+export const deleteAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado'
+      });
+      return;
+    }
+
+    // Eliminar todas las transacciones asociadas al usuario
+    await Transaction.deleteMany({ userId }).catch((error) => {
+      console.error('[AUTH | deleteAccount] Error eliminando transacciones:\n', userId, '\n', error);
+    });
+
+    // Eliminar el usuario
+    const deletedUser = await User.findByIdAndDelete(userId as any);
+
+    if (!deletedUser) {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: 'Cuenta y transacciones eliminadas correctamente'
+    });
+  } catch (error) {
     next(error);
   }
 };

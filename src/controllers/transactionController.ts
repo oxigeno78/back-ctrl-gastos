@@ -73,8 +73,8 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
 // Obtener transacción por ID
 export const getTransactionById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const transaction = await Transaction.findById(req.params._id);
-    if (!transaction) {
+    const transaction = await Transaction.findOne({ _id: req.params._id, deleted: false });
+    if (!transaction || transaction.deleted) {
       res.status(404).json({
         success: false,
         message: 'Transacción no encontrada'
@@ -93,8 +93,12 @@ export const getTransactionById = async (req: Request, res: Response, next: Next
 // Actualizar transacción por ID
 export const updateTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const transaction = await Transaction.findByIdAndUpdate(req.params._id, req.body, { new: true });
-    if (!transaction) {
+    const transaction = await Transaction.findOneAndUpdate(
+      { _id: req.params._id, deleted: false },
+      req.body,
+      { new: true }
+    );
+    if (!transaction || transaction.deleted) {
       res.status(404).json({
         success: false,
         message: 'Transacción no encontrada'
@@ -114,7 +118,11 @@ export const updateTransaction = async (req: Request, res: Response, next: NextF
 export const deleteTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { _id } = getTransactionByIdSchema.parse(req.params);
-    const transaction = await Transaction.findByIdAndDelete(_id);
+    const transaction = await Transaction.findOneAndUpdate(
+      { _id, deleted: false },
+      { deleted: true },
+      { new: true }
+    );
     if (!transaction) {
       res.status(404).json({
         success: false,
@@ -138,7 +146,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
     const { page, limit, type, category, startDate, endDate } = validatedQuery;
 
     // Construir filtros
-    const filters: any = { userId: req.user!.id as any };
+    const filters: any = { userId: req.user!.id as any, deleted: false };
     
     if (type) filters.type = type;
     if (category) filters.category = new RegExp(category, 'i');
@@ -163,7 +171,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
 
     // Calcular estadísticas
     const stats = await Transaction.aggregate([
-      { $match: { userId: new Types.ObjectId(req.user!.id) } },
+      { $match: { userId: new Types.ObjectId(req.user!.id), deleted: false } },
       {
         $group: {
           _id: '$type',
@@ -227,7 +235,8 @@ export const getMonthlyStats = async (req: Request, res: Response, next: NextFun
       {
         $match: {
           userId: new Types.ObjectId(req.user!.id),
-          date: { $gte: startDate, $lte: endDate }
+          date: { $gte: startDate, $lte: endDate },
+          deleted: false
         }
       },
       {
