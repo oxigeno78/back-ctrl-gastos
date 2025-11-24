@@ -32,6 +32,18 @@ export const resendSchema = z.object({
   email: z.string().email('Email inválido')
 });
 
+export const resetPasswordSchema = z.object({
+  token: z.string(),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
+});
+
+// Interfaz para el payload del JWT
+export interface JWTPayload {
+  userId: string;
+  email: string;
+}
+
 const verifyRecaptcha = async (token: string): Promise<boolean> => {
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
@@ -59,18 +71,6 @@ const verifyRecaptcha = async (token: string): Promise<boolean> => {
 
   return Boolean(data.success);
 };
-
-export const resetPasswordSchema = z.object({
-  token: z.string(),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
-});
-
-// Interfaz para el payload del JWT
-export interface JWTPayload {
-  userId: string;
-  email: string;
-}
 
 // Función para generar JWT
 export const generateToken = (payload: JWTPayload): string => {
@@ -340,6 +340,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
     const recaptchaValid = await verifyRecaptcha(recaptchaToken);
     if (!recaptchaValid) {
+      console.log('[authController | login] Falló la validación de reCAPTCHA');
       res.status(400).json({
         success: false,
         message: 'Falló la validación de reCAPTCHA'
@@ -350,6 +351,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // Buscar usuario por email
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
+      console.log('[authController | login] Usuario no encontrado');
       res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
@@ -360,6 +362,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // Verificar contraseña
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
+      console.log('[authController | login] Credenciales inválidas');
       res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
@@ -369,6 +372,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
     // Bloquear si no está verificado
     if (!user.isVerified) {
+      console.log('[authController | login] Cuenta no verificada');
       res.status(403).json({
         success: false,
         message: 'Tu cuenta no está verificada. Revisa tu correo o solicita reenvío de verificación.'
@@ -419,7 +423,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
       user.lastLogoutAt = new Date();
       await user.save();
     }
-    console.log('user', user);
+    console.log('[authController | logout] user', user);
 
     res.json({
       success: true,
