@@ -517,6 +517,29 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     next(error);
   }
 };
+
+export const changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+      return;
+    }
+    user.password = password;
+    await user.save();
+    res.json({
+      success: true,
+      message: 'Contraseña cambiada exitosamente'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Eliminar cuenta de usuario y sus transacciones asociadas
 export const deleteAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
