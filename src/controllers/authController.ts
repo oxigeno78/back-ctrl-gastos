@@ -29,6 +29,12 @@ export const resendSchema = z.object({
   email: z.string().email('Email inválido')
 });
 
+export const resetPasswordSchema = z.object({
+  token: z.string(),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
+});
+
 // Interfaz para el payload del JWT
 export interface JWTPayload {
   userId: string;
@@ -435,6 +441,7 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
+      console.log('[AUTH | recoveryUserPassword] Usuario no encontrado');
       res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
@@ -446,9 +453,8 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
     user.passwordResetToken = tokenHash;
     user.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 60); // 1h
     await user.save();
-    const appUrl = process.env.API_URL_BASE|| `http://localhost:${process.env.PORT || 5000}`;
-    const apiBase = process.env.API_BASE_PATH || '/api/v1.0.0';
-    const resetLink = `${appUrl}${apiBase}/auth/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+    const appUrl = process.env.FRONT_URL_RESET_PWD|| `http://localhost:3000/reset-password`;
+    const resetLink = `${appUrl}?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
     const smtpFrom = process.env.MAILER_FROM || 'no-reply@example.com';
     try {
       const transporter = await createMailTransport();
@@ -459,13 +465,54 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
         html: `<p>Hola ${user.name}, restablece tu contraseña haciendo clic aquí: <a href="${resetLink}">Restablecer</a></p>`
       });
     } catch (mailErr) {
-      console.error('Error enviando email de restablecimiento de contraseña:', mailErr);
+      console.error('[AUTH | recoveryUserPassword] Error enviando email de restablecimiento de contraseña:', mailErr);
     }
     res.json({
       success: true,
       message: 'Correo de restablecimiento de contraseña enviado'
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { token, email, password } = resetPasswordSchema.parse(req.body);
+    const user = await User.findOne({ email }).select('+passwordResetToken +passwordResetExpires');
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+      return;
+    }
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    if (!user.passwordResetExpires) {
+      res.status(401).json({
+        success: false,
+        message: 'Token inválido o expirado'
+      });
+      return;
+    }
+    if (user.passwordResetToken !== tokenHash || user.passwordResetExpires < new Date()) {
+      res.status(401).json({
+        success: false,
+        message: 'Token inválido o expirado'
+      });
+      return;
+    }
+    user.password = password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+    res.json({
+      success: true,
+      message: 'Contraseña restablecida exitosamente'
+    });
+  } catch (error) {
+    console.log('[AUTH | resetPassword] error: ', error);
+    console.log('[AUTH | resetPassword] body: ', req.body);
     next(error);
   }
 };
