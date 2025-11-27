@@ -4,6 +4,7 @@ const PORT = process.env.PORT || 5000;
 const apiBaseUrl = process.env.API_URL_BASE || `http://localhost:${process.env.PORT || 5000}`;
 const apiBasePath = process.env.API_BASE_PATH || '/api/v1.0.0';
 
+
 // Conectar a la base de datos y iniciar servidor
 const startServer = async () => {
   try {
