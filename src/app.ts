@@ -4,9 +4,11 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import swaggerUi from 'swagger-ui-express';
 import routes from './routes';
 import { errorHandler, notFound } from './middlewares/errorHandler';
 import { requestLogger, apiRateLimit, corsErrorHandler } from './middlewares/rateLimiting';
+import { swaggerSpec } from './swagger';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -55,8 +57,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Middleware para manejar errores de CORS
 app.use(corsErrorHandler);
 
-// Rutas principales
+// Documentación Swagger
 const apiBasePath = process.env.API_BASE_PATH || '/api/v1.0.0';
+const apiDocsPath = process.env.API_DOCS_PATH || '/api-docs';
+app.use(
+  apiBasePath+apiDocsPath,
+  swaggerUi.serve as unknown as express.RequestHandler[],
+  swaggerUi.setup(swaggerSpec) as unknown as express.RequestHandler
+);
+
+// Rutas principales
 app.use(apiBasePath, routes);
 
 // Middleware para rutas no encontradas

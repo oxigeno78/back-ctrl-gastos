@@ -66,7 +66,7 @@ export const createCategory = async (req: Request, res: Response, next: NextFunc
 export const getCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const defaultCategories = await Category.find({ deleted: false, type: 'system' });
-        const categories = await Category.find({ userId: req.user!.id as any });
+        const categories = await Category.find({ userId: req.user!.id, deleted: false });
         res.json({
             success: true,
             data: categories.concat(defaultCategories)

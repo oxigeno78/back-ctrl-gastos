@@ -9,6 +9,7 @@ API REST desarrollada con Express.js, TypeScript y MongoDB para el sistema de co
 - **JWT** para autenticación
 - **bcryptjs** para hash de contraseñas
 - **Zod** para validación de datos
+- **Swagger/OpenAPI** para documentación interactiva
 - Arquitectura limpia con principios SOLID
 - Middleware centralizado para errores y logs
 - Rate limiting y seguridad con Helmet
@@ -123,6 +124,9 @@ docker run -p 5000:5000 --env-file .env control-gastos-backend
 ### Health Check
 - `GET /api/v1.0.0/health` - Estado de la API
 
+### Documentación
+- `GET /api-docs` - Documentación Swagger UI interactiva
+
 ## ✉️ Verificación de correo
 
 - **Flujo**
@@ -167,7 +171,8 @@ backend/
 │   │   └── rateLimiting.ts
 │   ├── utils/           # Utilidades
 │   ├── app.ts           # Configuración de Express
-│   └── server.ts         # Punto de entrada
+│   ├── swagger.ts       # Configuración de Swagger/OpenAPI
+│   └── server.ts        # Punto de entrada
 ├── Dockerfile           # Imagen Docker
 ├── .dockerignore        # Archivos a ignorar en Docker
 ├── env.example          # Variables de entorno de ejemplo
@@ -200,6 +205,8 @@ backend/
 - Helmet
 - Morgan
 - Express Rate Limit
+- Swagger UI Express
+- Swagger JSDoc
 
 ## 🔒 Seguridad
 
@@ -267,3 +274,28 @@ MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/control-gastos
 - Verifica que `JWT_SECRET` esté configurado
 - Revisa que el token no haya expirado
 - Asegúrate de que el middleware de autenticación esté funcionando
+
+## 📚 Documentación API (Swagger)
+
+La API cuenta con documentación interactiva generada con Swagger/OpenAPI 3.0.
+
+### Acceso
+- **URL**: `http://localhost:5000/api-docs`
+- **Formato**: OpenAPI 3.0
+
+### Características
+- Documentación completa de todos los endpoints
+- Esquemas de request/response
+- Autenticación JWT integrada (Bearer Token)
+- Ejemplos de uso para cada endpoint
+- Posibilidad de probar endpoints directamente desde la interfaz
+
+### Configuración
+Las rutas de documentación se configuran mediante variables de entorno:
+```env
+API_DOCS_PATH=/api-docs
+```
+
+## 📄 Licencia
+
+MIT
