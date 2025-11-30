@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authRoutes from './authRoutes';
 import transactionRoutes from './transactionRoutes';
 import metricsRoutes from './metricsRoutes';
+import categoriesRoutes from './catewgoriesRoutes';
 
 const router = Router();
 
@@ -9,6 +10,7 @@ const router = Router();
 router.use('/auth', authRoutes);
 router.use('/transactions', transactionRoutes);
 router.use('/metrics', metricsRoutes);
+router.use('/categories', categoriesRoutes);
 
 // Ruta de salud
 router.get('/health', (req, res) => {

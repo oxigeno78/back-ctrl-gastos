@@ -60,7 +60,7 @@ const userSchema = new Schema<userInterfaces.IUser>({
 }, {
   timestamps: true,
   toJSON: {
-    transform: function(doc, ret) {
+    transform: function(_, ret) {
       const { password, ...userWithoutPassword } = ret;
       return userWithoutPassword;
     }

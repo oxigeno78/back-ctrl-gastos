@@ -8,7 +8,7 @@ import * as nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import sgMail from '@sendgrid/mail';
-import { authInterfaces, userInterfaces } from '../interfaces';
+import { authInterfaces} from '../interfaces';
 
 // Esquemas de validación con Zod
 export const registerSchema = z.object({

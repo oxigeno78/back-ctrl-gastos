@@ -1,0 +1,74 @@
+[
+    {
+        "name": "Alimentación",
+        "type": "system",
+        "description": "Ingreso",
+        "color": "#00FF00",
+        "userId": "userId",
+        "deleted": false
+    },
+    {
+        "name": "Transporte",
+        "type": "system",
+        "description": "Gasto",
+        "color": "#FF0000",
+        "userId": "userId",
+        "deleted": false
+    },
+    {
+        "name": "Vivienda",
+        "type": "system",
+        "description": "Gasto",
+        "color": "#FF0000",
+        "userId": "userId",
+        "deleted": false
+    },
+    {
+        "name": "Entretenimiento",
+        "type": "system",
+        "description": "Gasto",
+        "color": "#FF0000",
+        "userId": "userId",
+        "deleted": false
+    },
+    {
+        "name": "Salud",
+        "type": "system",
+        "description": "Gasto",
+        "color": "#FF0000",
+        "userId": "userId",
+        "deleted": false
+    },
+    {
+        "name": "Educación",
+        "type": "system",
+        "description": "Gasto",
+        "color": "#FF0000",
+        "userId": "userId",
+        "deleted": false
+    },
+    {
+        "name": "Salario",
+        "type": "system",
+        "description": "Ingreso",
+        "color": "#FF0000",
+        "userId": "userId",
+        "deleted": false
+    },
+    {
+        "name": "Freelance",
+        "type": "system",
+        "description": "Ingreso",
+        "color": "#FF0000",
+        "userId": "userId",
+        "deleted": false
+    },
+    {
+        "name": "Inversiones",
+        "type": "system",
+        "description": "Ingreso",
+        "color": "#FF0000",
+        "userId": "userId",
+        "deleted": false
+    }
+]
