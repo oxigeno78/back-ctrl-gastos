@@ -1,18 +1,7 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema, Types } from 'mongoose';
+import { transactionsInterfaces } from '../interfaces';
 
-export interface ITransaction extends Document {
-  userId: mongoose.Types.ObjectId;
-  type: 'income' | 'expense';
-  amount: number;
-  category: string;
-  description: string;
-  date: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  deleted: boolean;
-}
-
-const transactionSchema = new Schema<ITransaction>({
+const transactionSchema = new Schema<transactionsInterfaces.ITransaction>({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -61,4 +50,4 @@ transactionSchema.index({ userId: 1, date: -1 });
 transactionSchema.index({ userId: 1, type: 1 });
 transactionSchema.index({ userId: 1, category: 1 });
 
-export const Transaction = mongoose.model<ITransaction>('Transaction', transactionSchema);
+export const Transaction = mongoose.model<transactionsInterfaces.ITransaction>('Transaction', transactionSchema);

@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { User, IUser } from '../models/User';
+import { User } from '../models/User';
 import { Transaction } from '../models/Transaction';
 import { z } from 'zod';
 import crypto from 'crypto';
@@ -8,6 +8,7 @@ import * as nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import sgMail from '@sendgrid/mail';
+import { authInterfaces, userInterfaces } from '../interfaces';
 
 // Esquemas de validación con Zod
 export const registerSchema = z.object({
@@ -38,12 +39,6 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
 });
 
-// Interfaz para el payload del JWT
-export interface JWTPayload {
-  userId: string;
-  email: string;
-}
-
 const verifyRecaptcha = async (token: string): Promise<boolean> => {
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
@@ -73,7 +68,7 @@ const verifyRecaptcha = async (token: string): Promise<boolean> => {
 };
 
 // Función para generar JWT
-export const generateToken = (payload: JWTPayload): string => {
+export const generateToken = (payload: authInterfaces.JWTPayload): string => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error('JWT_SECRET no está configurado');
@@ -457,7 +452,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       return;
     }
     
-    const decoded = jwt.verify(token, secret) as JWTPayload;
+    const decoded = jwt.verify(token, secret) as authInterfaces.JWTPayload;
     
     // Verificar que el usuario aún existe
     const user = await User.findById(decoded.userId);

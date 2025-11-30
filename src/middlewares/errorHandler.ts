@@ -1,15 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { Error } from 'mongoose';
-
-// Interfaz para errores personalizados
-interface CustomError extends Error {
-  statusCode?: number;
-  isOperational?: boolean;
-}
+import { errorInterfaces } from '../interfaces';
 
 // Middleware centralizado de manejo de errores
 export const errorHandler = (
-  err: CustomError,
+  err: errorInterfaces.CustomError,
   req: Request,
   res: Response,
   next: NextFunction
@@ -28,7 +22,7 @@ export const errorHandler = (
       message,
       statusCode: 400,
       isOperational: true
-    } as CustomError;
+    } as errorInterfaces.CustomError;
   }
 
   // Error de duplicado de Mongoose
@@ -39,7 +33,7 @@ export const errorHandler = (
       message,
       statusCode: 400,
       isOperational: true
-    } as CustomError;
+    } as errorInterfaces.CustomError;
   }
 
   // Error de cast de Mongoose
@@ -49,7 +43,7 @@ export const errorHandler = (
       message,
       statusCode: 404,
       isOperational: true
-    } as CustomError;
+    } as errorInterfaces.CustomError;
   }
 
   // Error de JWT
@@ -59,7 +53,7 @@ export const errorHandler = (
       message,
       statusCode: 401,
       isOperational: true
-    } as CustomError;
+    } as errorInterfaces.CustomError;
   }
 
   // Error de expiración de JWT
@@ -69,7 +63,7 @@ export const errorHandler = (
       message,
       statusCode: 401,
       isOperational: true
-    } as CustomError;
+    } as errorInterfaces.CustomError;
   }
 
   // Error de sintaxis JSON
@@ -79,7 +73,7 @@ export const errorHandler = (
       message,
       statusCode: 400,
       isOperational: true
-    } as CustomError;
+    } as errorInterfaces.CustomError;
   }
 
   // Respuesta de error
@@ -92,7 +86,7 @@ export const errorHandler = (
 
 // Middleware para manejar rutas no encontradas
 export const notFound = (req: Request, res: Response, next: NextFunction) => {
-  const error = new Error(`Ruta no encontrada - ${req.originalUrl}`) as CustomError;
+  const error = new Error(`Ruta no encontrada - ${req.originalUrl}`) as errorInterfaces.CustomError;
   error.statusCode = 404;
   next(error);
 };

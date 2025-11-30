@@ -1,23 +1,8 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { userInterfaces } from '../interfaces';
 
-export interface IUser extends Document {
-  name: string;
-  email: string;
-  password: string;
-  isVerified: boolean;
-  emailVerificationToken?: string | null;
-  emailVerificationExpires?: Date | null;
-  passwordResetToken?: string | null;
-  passwordResetExpires?: Date | null;
-  lastLoginAt?: Date | null;
-  lastLogoutAt?: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
-}
-
-const userSchema = new Schema<IUser>({
+const userSchema = new Schema<userInterfaces.IUser>({
   name: {
     type: String,
     required: [true, 'El nombre es requerido'],
@@ -100,4 +85,4 @@ userSchema.methods.comparePassword = async function(candidatePassword: string): 
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-export const User = mongoose.model<IUser>('User', userSchema);
+export const User = mongoose.model<userInterfaces.IUser>('User', userSchema);
