@@ -96,6 +96,7 @@ const options: swaggerJSDoc.Options = {
             name: { type: 'string', maxLength: 50, example: 'Alimentación' },
             type: { type: 'string', enum: ['system', 'user'], example: 'user' },
             userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            transactionType: { type: 'string', enum: ['income', 'expense'], example: 'expense', description: 'Tipo de transacción asociada a la categoría' },
             description: { type: 'string', maxLength: 200, example: 'Gastos de comida y supermercado' },
             color: { type: 'string', maxLength: 7, example: '#FF5733' },
             deleted: { type: 'boolean', example: false },
@@ -105,10 +106,11 @@ const options: swaggerJSDoc.Options = {
         },
         CategoryInput: {
           type: 'object',
-          required: ['name', 'type', 'description', 'color'],
+          required: ['name', 'type', 'transactionType', 'description', 'color'],
           properties: {
             name: { type: 'string', maxLength: 50, example: 'Entretenimiento' },
             type: { type: 'string', enum: ['income', 'expense'], example: 'expense' },
+            transactionType: { type: 'string', enum: ['income', 'expense'], example: 'expense', description: 'Tipo de transacción asociada a la categoría' },
             description: { type: 'string', maxLength: 200, example: 'Gastos de ocio y diversión' },
             color: { type: 'string', maxLength: 7, example: '#3498DB' },
           },

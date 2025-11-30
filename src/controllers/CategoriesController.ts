@@ -8,6 +8,9 @@ export const createCategorySchema = z.object({
     type: z.enum(['income', 'expense'], {
         errorMap: () => ({ message: 'El tipo debe ser "income" o "expense"' })
     }),
+    transactionType: z.enum(['income', 'expense'], {
+        errorMap: () => ({ message: 'El tipo debe ser "income" o "expense"' })
+    }),
     description: z.string().min(1, 'La descripción es requerida').max(200, 'La descripción no puede exceder 200 caracteres'),
     color: z.string().min(1, 'El color es requerido').max(7, 'El color debe tener al menos 7 caracteres')
 });
@@ -22,6 +25,9 @@ export const updateCategorySchema = z.object({
     type: z.enum(['income', 'expense'], {
         errorMap: () => ({ message: 'El tipo debe ser "income" o "expense"' })
     }),
+    transactionType: z.enum(['income', 'expense'], {
+        errorMap: () => ({ message: 'El tipo de transacción debe ser "income" o "expense"' })
+    }),
     description: z.string().min(1, 'La descripción es requerida').max(200, 'La descripción no puede exceder 200 caracteres'),
     color: z.string().min(1, 'El color es requerido').max(7, 'El color debe tener al menos 7 caracteres')
 });
@@ -33,11 +39,12 @@ export const deleteCategorySchema = z.object({
 export const createCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const validatedData = createCategorySchema.parse(req.body);
-        const { name, type, description, color } = validatedData;
+        const { name, type, transactionType, description, color } = validatedData;
 
         const category = new Category({
             name,
             type,
+            transactionType,
             description,
             color,
             userId: req.user!.id as any
@@ -80,7 +87,7 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
     try {
         const { _id } = updateCategorySchema.parse(req.params);
         const validatedData = updateCategorySchema.parse(req.body);
-        const { name, type, description, color } = validatedData;
+        const { name, type, transactionType, description, color } = validatedData;
 
         const category = await Category.findOne({ _id, deleted: false });
         
@@ -101,7 +108,7 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
 
         const updatedCategory = await Category.findOneAndUpdate(
             { _id, deleted: false, type: 'user' },
-            { name, type, description, color },
+            { name, type, transactionType, description, color },
             { new: true }
         );
 

@@ -4,6 +4,7 @@ export interface ICategory extends Document {
     name: string;
     type: 'system' | 'user';
     userId?: Types.ObjectId|string;
+    transactionType: 'income' | 'expense';
     description: string;
     color: string;
     createdAt: Date;

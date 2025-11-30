@@ -27,6 +27,14 @@ const categorySchema = new Schema<categoriesInterfaces.ICategory>({
         trim: true,
         maxlength: [200, 'La descripción no puede exceder 200 caracteres']
     },
+    transactionType: {
+        type: String,
+        enum: {
+            values: ['income', 'expense'],
+            message: 'El tipo debe ser "income" o "expense"'
+        },
+        default: 'expense'
+    },
     color: {
         type: String,
         required: [true, 'El color es requerido'],
