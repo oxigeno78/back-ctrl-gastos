@@ -39,13 +39,14 @@ JWT_SECRET=supersecretkey
 PORT=5000
 NODE_ENV=development
 JWT_EXPIRES_IN=7d
+RECAPTCHA_SECRET_KEY=xxx
 
 # Frontend y base de API
 FRONTEND_URL=http://localhost:3000
 API_URL_BASE=http://localhost
 API_BASE_PATH=/api/v1.0.0
 
-# Proveedor de email: smtp | ses
+# Proveedor de email: smtp | ses | sendgrid
 EMAIL_PROVIDER=ses
 MAILER_FROM=noreply@example.com
 
@@ -53,6 +54,9 @@ MAILER_FROM=noreply@example.com
 AWS_REGION=us-east-1
 # AWS_ACCESS_KEY_ID=
 # AWS_SECRET_ACCESS_KEY=
+
+# Configuración SendGrid (si EMAIL_PROVIDER=sendgrid)
+SENDGRID_API_KEY=
 
 # Configuración SMTP (si EMAIL_PROVIDER=smtp)
 SMTP_HOST=email-smtp.us-east-1.amazonaws.com
@@ -89,15 +93,29 @@ docker run -p 5000:5000 --env-file .env control-gastos-backend
 ## 📡 API Endpoints
 
 ### Autenticación
-- `POST /api/v1.0.0/auth/register` - Registro de usuario
-- `POST /api/v1.0.0/auth/login` - Login de usuario
-- `GET /api/v1.0.0/auth/verify` - Verificar correo electrónico
-- `POST /api/v1.0.0/auth/resend-verification` - Reenviar correo de verificación
+ - `POST /api/v1.0.0/auth/register` - Registro de usuario
+ - `POST /api/v1.0.0/auth/login` - Login de usuario
+ - `POST /api/v1.0.0/auth/logout` - Cierre de sesión (requiere auth)
+ - `GET /api/v1.0.0/auth/verify` - Verificar correo electrónico
+ - `POST /api/v1.0.0/auth/resend-verification` - Reenviar correo de verificación
+ - `POST /api/v1.0.0/auth/recover-password` - Solicitar recuperación de contraseña
+ - `POST /api/v1.0.0/auth/reset-password` - Restablecer contraseña
+ - `POST /api/v1.0.0/auth/change-password` - Cambiar contraseña (requiere auth)
+ - `DELETE /api/v1.0.0/auth/account` - Eliminar cuenta de usuario (requiere auth)
 
 ### Transacciones
-- `GET /api/v1.0.0/transactions` - Obtener transacciones (requiere auth)
-- `POST /api/v1.0.0/transactions` - Crear transacción (requiere auth)
-- `GET /api/v1.0.0/transactions/stats/monthly` - Estadísticas mensuales (requiere auth)
+ - `GET /api/v1.0.0/transactions` - Obtener transacciones (requiere auth)
+ - `POST /api/v1.0.0/transactions` - Crear transacción (requiere auth)
+ - `GET /api/v1.0.0/transactions/:_id` - Obtener detalle de una transacción (requiere auth)
+ - `PUT /api/v1.0.0/transactions/:_id` - Actualizar una transacción (requiere auth)
+ - `DELETE /api/v1.0.0/transactions/:_id` - Eliminar una transacción (requiere auth)
+ - `GET /api/v1.0.0/transactions/stats/monthly` - Estadísticas mensuales (requiere auth)
+
+### Categorías
+- `POST /api/v1.0.0/categories/categories` - Crear categoría (requiere auth)
+- `GET /api/v1.0.0/categories/categories` - Listar categorías (usuario + sistema) (requiere auth)
+- `PUT /api/v1.0.0/categories/categories/:_id` - Actualizar categoría de usuario (requiere auth)
+- `DELETE /api/v1.0.0/categories/categories/:_id` - Eliminar categoría de usuario (requiere auth)
 
 ### Métricas
 - `GET /api/v1.0.0/metrics` - Métricas del sistema (público)
@@ -131,14 +149,17 @@ backend/
 │   ├── controllers/     # Controladores de rutas
 │   │   ├── authController.ts
 │   │   ├── transactionController.ts
-│   │   └── metricsController.ts
+│   │   ├── metricsController.ts
+│   │   └── CategoriesController.ts
 │   ├── models/          # Modelos de MongoDB
 │   │   ├── User.ts
-│   │   └── Transaction.ts
+│   │   ├── Transaction.ts
+│   │   └── Categorys.ts
 │   ├── routes/          # Definición de rutas
 │   │   ├── authRoutes.ts
 │   │   ├── transactionRoutes.ts
 │   │   ├── metricsRoutes.ts
+│   │   ├── catewgoriesRoutes.ts
 │   │   └── index.ts
 │   ├── services/        # Lógica de negocio
 │   ├── middlewares/     # Middlewares personalizados
@@ -171,6 +192,10 @@ backend/
 - JWT
 - bcryptjs
 - Zod
+ - Nodemailer
+ - AWS SES (@aws-sdk/client-sesv2)
+ - SendGrid (@sendgrid/mail)
+ - Google reCAPTCHA
 - CORS
 - Helmet
 - Morgan
