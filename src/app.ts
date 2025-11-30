@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import path from 'path';
+import favicon from 'serve-favicon';
 import swaggerUi from 'swagger-ui-express';
 import routes from './routes';
 import { errorHandler, notFound } from './middlewares/errorHandler';
@@ -14,6 +16,9 @@ import { swaggerSpec } from './swagger';
 dotenv.config();
 
 const app = express();
+
+// Favicon
+app.use(favicon(path.join(__dirname, '../public', 'favicon.png')) as unknown as express.RequestHandler);
 
 // Middlewares de seguridad
 app.use(helmet());

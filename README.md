@@ -298,4 +298,6 @@ API_DOCS_PATH=/api-docs
 
 ## 📄 Licencia
 
-MIT
+Este proyecto es software propietario. Todos los derechos reservados.
+
+**UNLICENSED** - No se permite el uso, copia, modificación o distribución sin autorización expresa del autor.
