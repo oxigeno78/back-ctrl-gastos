@@ -6,9 +6,9 @@ const router = Router();
 
 router.use(authenticateToken);
 
-router.post('/categories', createCategory);
-router.get('/categories', getCategories);
-router.put('/categories/:_id', updateCategory);
-router.delete('/categories/:_id', deleteCategory);
+router.post('/', createCategory);
+router.get('/', getCategories);
+router.put('/:_id', updateCategory);
+router.delete('/:_id', deleteCategory);
 
 export default router;

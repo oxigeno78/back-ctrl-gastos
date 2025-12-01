@@ -655,7 +655,7 @@ const options: swaggerJSDoc.Options = {
         },
       },
       // Categories
-      '/categories/categories': {
+      '/categories': {
         post: {
           tags: ['Categories'],
           summary: 'Crear categoría',
@@ -713,7 +713,7 @@ const options: swaggerJSDoc.Options = {
           },
         },
       },
-      '/categories/categories/{_id}': {
+      '/categories/{_id}': {
         put: {
           tags: ['Categories'],
           summary: 'Actualizar categoría',

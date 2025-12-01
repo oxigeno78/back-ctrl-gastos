@@ -1,10 +1,40 @@
 import { Request, Response, NextFunction } from 'express';
 import { Transaction } from '../models/Transaction';
+import { Category } from '../models/Categorys';
 import { z } from 'zod';
 import { Types } from 'mongoose';
 
+// Helper para verificar si un string es un ObjectId válido
+const isValidObjectId = (str: string): boolean => Types.ObjectId.isValid(str) && new Types.ObjectId(str).toString() === str;
+
+// Helper para resolver el nombre de categoría (ObjectId -> nombre, o devolver string original)
+const resolveCategoryName = async (category: string): Promise<string> => {
+  if (!isValidObjectId(category)) {
+    const cat = await Category.findOne({ name: category }).lean();
+    if (!cat) return category;
+    return cat.name;
+  } else {
+    const cat = await Category.findById(category).lean();
+    if (!cat) return category;
+    return cat.name;
+  }
+};
+
+// Helper para resolver nombre y color de categoría
+const resolveCategoryDetails = async (category: string): Promise<{ name: string; color: string } | null> => {
+  if (!isValidObjectId(category)) {
+    const cat = await Category.findOne({ name: category }).lean();
+    if (!cat) return null;
+    return { name: cat.name, color: cat.color };
+  } else {
+    const cat = await Category.findById(category).lean();
+    if (!cat) return null;
+    return { name: cat.name, color: cat.color };
+  }
+};
+
 // Esquemas de validación
-export const createTransactionSchema = z.object({
+const createTransactionSchema = z.object({
   type: z.enum(['income', 'expense'], {
     errorMap: () => ({ message: 'El tipo debe ser "income" o "expense"' })
   }),
@@ -14,7 +44,7 @@ export const createTransactionSchema = z.object({
   date: z.string().datetime().optional()
 });
 
-export const getTransactionsSchema = z.object({
+const getTransactionsSchema = z.object({
   page: z.string().optional().transform(val => val ? parseInt(val) : 1),
   limit: z.string().optional().transform(val => val ? parseInt(val) : 10),
   type: z.enum(['income', 'expense']).optional(),
@@ -23,11 +53,11 @@ export const getTransactionsSchema = z.object({
   endDate: z.string().datetime().optional()
 });
 
-export const getTransactionByIdSchema = z.object({
+const getTransactionByIdSchema = z.object({
   _id: z.string().min(1, 'El ID es requerido')
 });
 
-export const updateTransactionSchema = z.object({
+const updateTransactionSchema = z.object({
   type: z.enum(['income', 'expense']).optional(),
   amount: z.number().positive('El monto debe ser mayor a 0').optional(),
   category: z.string().min(1, 'La categoría es requerida').max(50, 'La categoría no puede exceder 50 caracteres').optional(),
@@ -73,7 +103,7 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
 // Obtener transacción por ID
 export const getTransactionById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const transaction = await Transaction.findOne({ _id: req.params._id, deleted: false });
+    const transaction = await Transaction.findOne({ _id: req.params._id, deleted: false }).lean();
     if (!transaction || transaction.deleted) {
       res.status(404).json({
         success: false,
@@ -81,9 +111,13 @@ export const getTransactionById = async (req: Request, res: Response, next: Next
       });
       return;
     }
+
+    // Resolver nombre de categoría si es ObjectId
+    const categoryName = await resolveCategoryName(transaction.category);
+
     res.json({
       success: true,
-      data: transaction
+      data: { ...transaction, category: categoryName }
     });
   } catch (error) {
     next(error);
@@ -160,7 +194,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
     const skip = (page - 1) * limit;
 
     // Ejecutar consulta
-    const [transactions, total] = await Promise.all([
+    const [rawTransactions, total] = await Promise.all([
       Transaction.find(filters)
         .sort({ date: -1 })
         .skip(skip)
@@ -168,6 +202,14 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
         .lean(),
       Transaction.countDocuments(filters)
     ]);
+
+    // Resolver nombres de categorías
+    const transactions = await Promise.all(
+      rawTransactions.map(async (t) => ({
+        ...t,
+        category: await resolveCategoryName(t.category)
+      }))
+    );
 
     // Calcular estadísticas
     const stats = await Transaction.aggregate([
@@ -265,12 +307,31 @@ export const getMonthlyStats = async (req: Request, res: Response, next: NextFun
       }
     ]);
 
+    // Resolver nombres y colores de categorías en stats
+    const resolvedStats = await Promise.all(
+      stats.map(async (stat) => ({
+        ...stat,
+        categories: await Promise.all(
+          stat.categories.map(async (cat: { category: string; total: number; count: number }) => {
+            const details = await resolveCategoryDetails(cat.category);
+            if (!details) return cat;
+            console.log(details);
+            return {
+              ...cat,
+              category: details.name,
+              color: details.color
+            };
+          })
+        )
+      }))
+    );
+
     res.json({
       success: true,
       data: {
         month: parseInt(month as string),
         year: parseInt(year as string),
-        stats
+        stats: resolvedStats
       }
     });
   } catch (error) {

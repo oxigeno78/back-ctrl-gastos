@@ -3,11 +3,8 @@ import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { Category } from '../models/Categorys';
 
-export const createCategorySchema = z.object({
+const createCategorySchema = z.object({
     name: z.string().min(1, 'El nombre es requerido').max(50, 'El nombre no puede exceder 50 caracteres'),
-    type: z.enum(['income', 'expense'], {
-        errorMap: () => ({ message: 'El tipo debe ser "income" o "expense"' })
-    }),
     transactionType: z.enum(['income', 'expense'], {
         errorMap: () => ({ message: 'El tipo debe ser "income" o "expense"' })
     }),
@@ -15,16 +12,12 @@ export const createCategorySchema = z.object({
     color: z.string().min(1, 'El color es requerido').max(7, 'El color debe tener al menos 7 caracteres')
 });
 
-export const getCategoriesSchema = z.object({
+const getCategoriesSchema = z.object({
     _id: z.string().min(1, 'El ID es requerido')
 });
 
-export const updateCategorySchema = z.object({
-    _id: z.string().min(1, 'El ID es requerido'),
+const updateCategorySchema = z.object({
     name: z.string().min(1, 'El nombre es requerido').max(50, 'El nombre no puede exceder 50 caracteres'),
-    type: z.enum(['income', 'expense'], {
-        errorMap: () => ({ message: 'El tipo debe ser "income" o "expense"' })
-    }),
     transactionType: z.enum(['income', 'expense'], {
         errorMap: () => ({ message: 'El tipo de transacción debe ser "income" o "expense"' })
     }),
@@ -32,18 +25,18 @@ export const updateCategorySchema = z.object({
     color: z.string().min(1, 'El color es requerido').max(7, 'El color debe tener al menos 7 caracteres')
 });
 
-export const deleteCategorySchema = z.object({
+const categoryIdInParam =z.object({
     _id: z.string().min(1, 'El ID es requerido')
-});
+})
 
 export const createCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const validatedData = createCategorySchema.parse(req.body);
-        const { name, type, transactionType, description, color } = validatedData;
+        const { name, transactionType, description, color } = validatedData;
 
         const category = new Category({
             name,
-            type,
+            type: 'user',
             transactionType,
             description,
             color,
@@ -85,9 +78,9 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
 
 export const updateCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { _id } = updateCategorySchema.parse(req.params);
+        const { _id } = categoryIdInParam.parse(req.params);
         const validatedData = updateCategorySchema.parse(req.body);
-        const { name, type, transactionType, description, color } = validatedData;
+        const { name, transactionType, description, color } = validatedData;
 
         const category = await Category.findOne({ _id, deleted: false });
         
@@ -105,10 +98,11 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
             });
             return;
         }
+        const type = 'user';
 
         const updatedCategory = await Category.findOneAndUpdate(
-            { _id, deleted: false, type: 'user' },
-            { name, type, transactionType, description, color },
+            { _id, deleted: false, type },
+            { name, transactionType, description, color },
             { new: true }
         );
 
@@ -131,7 +125,7 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
 
 export const deleteCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { _id } = deleteCategorySchema.parse(req.params);
+        const { _id } = categoryIdInParam.parse(req.params);
         const existingCategory = await Category.findOne({ _id, deleted: false });
 
         if (!existingCategory) {
