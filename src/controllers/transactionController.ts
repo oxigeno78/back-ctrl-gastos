@@ -315,7 +315,6 @@ export const getMonthlyStats = async (req: Request, res: Response, next: NextFun
           stat.categories.map(async (cat: { category: string; total: number; count: number }) => {
             const details = await resolveCategoryDetails(cat.category);
             if (!details) return cat;
-            console.log(details);
             return {
               ...cat,
               category: details.name,
