@@ -15,7 +15,8 @@ export const registerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(50, 'El nombre no puede exceder 50 caracteres'),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido')
+  recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido'),
+  language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres').optional()
 });
 
 export const loginSchema = z.object({
@@ -37,6 +38,11 @@ export const resetPasswordSchema = z.object({
   token: z.string(),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
+});
+
+export const changeLanguageSchema = z.object({
+  language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres'),
+  email: z.string().email('Email inválido')
 });
 
 const verifyRecaptcha = async (token: string): Promise<boolean> => {
@@ -247,7 +253,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   try {
     // Validar datos de entrada
     const validatedData = registerSchema.parse(req.body);
-    const { name, email, password, recaptchaToken } = validatedData;
+    const { name, email, password, recaptchaToken, language='esp' } = validatedData;
 
     const recaptchaValid = await verifyRecaptcha(recaptchaToken);
     if (!recaptchaValid) {
@@ -269,7 +275,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     }
 
     // Crear nuevo usuario
-    const user = new User({ name, email, password, isVerified: false });
+    const user = new User({ name, email, password, isVerified: false, language });
 
     // Generar token de verificación
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -393,7 +399,8 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
           name: user.name,
           email: user.email
         },
-        token
+        token,
+        language: user.language
       }
     });
   } catch (error) {
@@ -418,7 +425,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
       user.lastLogoutAt = new Date();
       await user.save();
     }
-    console.log('[authController | logout] user', user);
+    // console.log('[authController | logout] user', user);
 
     res.json({
       success: true,
@@ -581,6 +588,28 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     res.json({
       success: true,
       message: 'Contraseña cambiada exitosamente'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changeLanguage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { language, email } = changeLanguageSchema.parse(req.body);
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+      return;
+    }
+    user.language = language;
+    await user.save();
+    res.json({
+      success: true,
+      message: 'Idioma cambiado exitosamente'
     });
   } catch (error) {
     next(error);

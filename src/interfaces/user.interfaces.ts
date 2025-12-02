@@ -13,5 +13,6 @@ export interface IUser extends Document {
   lastLogoutAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  language?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
