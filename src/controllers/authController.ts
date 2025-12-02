@@ -15,7 +15,8 @@ export const registerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(50, 'El nombre no puede exceder 50 caracteres'),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido')
+  recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido'),
+  language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres').optional()
 });
 
 export const loginSchema = z.object({
@@ -247,7 +248,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   try {
     // Validar datos de entrada
     const validatedData = registerSchema.parse(req.body);
-    const { name, email, password, recaptchaToken } = validatedData;
+    const { name, email, password, recaptchaToken, language='esp' } = validatedData;
 
     const recaptchaValid = await verifyRecaptcha(recaptchaToken);
     if (!recaptchaValid) {
@@ -269,7 +270,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     }
 
     // Crear nuevo usuario
-    const user = new User({ name, email, password, isVerified: false });
+    const user = new User({ name, email, password, isVerified: false, language });
 
     // Generar token de verificación
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -393,7 +394,8 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
           name: user.name,
           email: user.email
         },
-        token
+        token,
+        language: user.language
       }
     });
   } catch (error) {
