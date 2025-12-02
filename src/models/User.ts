@@ -56,6 +56,10 @@ const userSchema = new Schema<userInterfaces.IUser>({
     type: Date,
     default: null,
     select: false
+  },
+  language: {
+    type: String,
+    default: 'esp'
   }
 }, {
   timestamps: true,
