@@ -12,7 +12,7 @@ router.post('/resend-verification', resendVerification);
 router.post('/recover-password', recoveryUserPassword);
 router.post('/reset-password', resetPassword);
 router.post('/change-password', authenticateToken, changePassword);
-router.post('/change-language', authenticateToken, changeLanguage);
+router.put('/language', authenticateToken, changeLanguage);
 router.delete('/account', authenticateToken, deleteAccount);
 
 export default router;
