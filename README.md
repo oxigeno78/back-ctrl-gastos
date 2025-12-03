@@ -112,6 +112,26 @@ docker run -p 5000:5000 --env-file .env control-gastos-backend
  - `DELETE /api/v1.0.0/transactions/:_id` - Eliminar una transacción (requiere auth)
  - `GET /api/v1.0.0/transactions/stats/monthly` - Estadísticas mensuales (requiere auth)
 
+#### Periodicidad de Transacciones
+
+Las transacciones soportan periodicidad para gastos/ingresos recurrentes:
+
+| Valor | Texto | Descripción |
+|-------|-------|-------------|
+| 0 | `one-time` | Una sola vez / Desactivado |
+| 1 | `daily` | Diario |
+| 2 | `weekly` | Semanal |
+| 3 | `fortnightly` | Catorcenal |
+| 4 | `bi-weekly` | Quincenal |
+| 5 | `monthly` | Mensual |
+| 6 | `bi-monthly` | Bimestral |
+| 7 | `quarterly` | Trimestral |
+| 8 | `semi-annual` | Semestral |
+| 9 | `yearly` | Anual |
+| 10 | `custom` | Personalizado |
+
+La respuesta incluye `periodicityText` con el texto legible de la periodicidad.
+
 ### Categorías
 - `POST /api/v1.0.0/categories/categories` - Crear categoría (requiere auth)
 - `GET /api/v1.0.0/categories/categories` - Listar categorías (usuario + sistema) (requiere auth)
