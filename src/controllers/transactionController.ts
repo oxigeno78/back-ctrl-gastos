@@ -220,7 +220,7 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
       rawTransactions.map(async (t) => ({
         ...t,
         category: await resolveCategoryName(t.category),
-        periodicityText: periodicity[t.periodicity as keyof typeof periodicity] || 'one-time'
+        periodicityText: periodicity[t.periodicity as keyof typeof periodicity] || 'Disabled'
       }))
     );
 
