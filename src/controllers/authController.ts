@@ -9,6 +9,7 @@ import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import sgMail from '@sendgrid/mail';
 import { authInterfaces} from '../interfaces';
+import { config } from '../config';
 
 // Esquemas de validación con Zod
 export const registerSchema = z.object({
@@ -46,14 +47,12 @@ export const changeLanguageSchema = z.object({
 });
 
 const verifyRecaptcha = async (token: string): Promise<boolean> => {
-  const secret = process.env.RECAPTCHA_SECRET_KEY;
-
-  if (!secret) {
+  if (!config.recaptchaSecretKey) {
     throw new Error('RECAPTCHA_SECRET_KEY no está configurado');
   }
 
   const params = new URLSearchParams();
-  params.append('secret', secret);
+  params.append('secret', config.recaptchaSecretKey);
   params.append('response', token);
 
   const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
@@ -75,34 +74,28 @@ const verifyRecaptcha = async (token: string): Promise<boolean> => {
 
 // Función para generar JWT
 export const generateToken = (payload: authInterfaces.JWTPayload): string => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET no está configurado');
-  }
-  
-  return jwt.sign(payload, secret, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+  return jwt.sign(payload, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn
   } as jwt.SignOptions);
 };
 
 // Helper para crear transporte de correo (SMTP o AWS SES)
 const createMailTransport = async (): Promise<nodemailer.Transporter> => {
-  const provider = (process.env.EMAIL_PROVIDER || 'smtp').toLowerCase();
+  const provider = config.email.provider.toLowerCase();
 
   if (provider === 'sendgrid') {
-    const apiKey = process.env.SENDGRID_API_KEY;
-    if (!apiKey) {
+    if (!config.email.sendgrid.apiKey) {
       throw new Error('SENDGRID_API_KEY no está configurado para usar SendGrid');
     }
 
-    sgMail.setApiKey(apiKey);
+    sgMail.setApiKey(config.email.sendgrid.apiKey);
 
     const transporter = {
       // Adaptador simple para imitar nodemailer Transporter
       sendMail: async (options: nodemailer.SendMailOptions) => {
         const msg = {
           to: options.to as any,
-          from: (options.from as any) || process.env.MAILER_FROM || 'no-reply@example.com',
+          from: (options.from as any) || config.email.from,
           subject: options.subject,
           html: options.html,
           text: options.text,
@@ -118,11 +111,10 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   }
 
   if (provider === 'ses') {
-    const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION;
-    if (!region) {
+    if (!config.aws.region) {
       throw new Error('AWS_REGION no configurado para usar SES');
     }
-    const ses = new SESv2Client({ region });
+    const ses = new SESv2Client({ region: config.aws.region });
     // Nodemailer con AWS SDK v3 (SESv2) usando SendEmailCommand
     const transporter = nodemailer.createTransport({
       SES: { ses, aws: { SendEmailCommand } } as any
@@ -131,22 +123,17 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   }
 
   // Default: SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
-  const smtpHost = process.env.SMTP_HOST && process.env.SMTP_HOST != '' ? process.env.SMTP_HOST : 'smtp.gmail.com';
-  const smtpPort = process.env.SMTP_PORT && !isNaN(parseInt(process.env.SMTP_PORT)) ? parseInt(process.env.SMTP_PORT) : undefined;
-  const smtpUser = process.env.SMTP_USER && process.env.SMTP_USER != '' ? process.env.SMTP_USER : 'oxigeno78@gmail.com';
-  const smtpPass = process.env.SMTP_PASS && process.env.SMTP_PASS != '' ? process.env.SMTP_PASS : 'fhgnqeanjxgjnehd';
+  const { host, port, user, pass } = config.email.smtp;
 
-  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
-    console.error(smtpHost, `${smtpPort}, (${process.env.SMTP_PORT})` , smtpUser, smtpPass);
+  if (!host || !port || !user || !pass) {
     throw new Error('SMTP no está configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
   }
 
   return nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass },
-    debug: process.env.MAILER_DEBUG === 'true'
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
   } as SMTPTransport.Options);
 }
 
@@ -179,9 +166,8 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
     user.emailVerificationExpires = null;
     await user.save();
 
-    const frontendBase = process.env.FRONTEND_URL;
-    if (frontendBase) {
-      const url = frontendBase.replace(/\/$/, '') + '/auth/login?verified=1';
+    if (config.frontendUrl) {
+      const url = config.frontendUrl.replace(/\/$/, '') + '/auth/login?verified=1';
       res.redirect(302, url);
       return;
     }
@@ -217,18 +203,14 @@ export const resendVerification = async (req: Request, res: Response, next: Next
     user.emailVerificationExpires = new Date(Date.now() + 1000 * 60 * 60); // 1h
     await user.save();
 
-    const appUrl = process.env.API_URL_BASE|| `http://localhost:${process.env.PORT || 5000}`;
-    const apiBase = process.env.API_BASE_PATH || '/api/v1.0.0';
-    const verifyLink = `${appUrl}${apiBase}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
-
-    const smtpFrom = process.env.MAILER_FROM || 'no-reply@example.com';
+    const verifyLink = `${config.apiUrlBase}${config.apiBasePath}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
     console.log('reenviando Link de verificación:', verifyLink);
 
     try {
       const transporter = await createMailTransport();
       await transporter.sendMail({
-        from: smtpFrom,
+        from: config.email.from,
         to: user.email,
         subject: 'Confirma tu correo (reenvío)',
         html: `<p>Hola ${user.name}, confirma tu correo: <a href="${verifyLink}">Confirmar</a></p>`
@@ -286,19 +268,13 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     await user.save();
 
     // Construir link de verificación
-    const appUrl = process.env.API_URL_BASE|| `http://localhost:${process.env.PORT || 5000}`;
-    const apiBase = process.env.API_BASE_PATH || '/api/v1.0.0';
-    const verifyLink = `${appUrl}${apiBase}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
-    console.log('appUrl', appUrl);
-    console.log('apiBase', apiBase);
-    console.log('verifyLink', verifyLink);
+    const verifyLink = `${config.apiUrlBase}${config.apiBasePath}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
     // Enviar email de verificación
     try {
-      const smtpFrom = process.env.MAILER_FROM || 'no-reply@example.com';
       const transporter = await createMailTransport();
       await transporter.sendMail({
-        from: smtpFrom,
+        from: config.email.from,
         to: user.email,
         subject: 'Confirma tu correo',
         html: `<p>Hola ${user.name}, confirma tu correo haciendo clic aquí: <a href="${verifyLink}">Confirmar</a></p>`
@@ -450,16 +426,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       return;
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      res.status(500).json({
-        success: false,
-        message: 'Error de configuración del servidor'
-      });
-      return;
-    }
-    
-    const decoded = jwt.verify(token, secret) as authInterfaces.JWTPayload;
+    const decoded = jwt.verify(token, config.jwt.secret) as authInterfaces.JWTPayload;
     
     // Verificar que el usuario aún existe
     const user = await User.findById(decoded.userId);
@@ -508,13 +475,11 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
     user.passwordResetToken = tokenHash;
     user.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 60); // 1h
     await user.save();
-    const appUrl = process.env.FRONT_URL_RESET_PWD|| `http://localhost:3000/reset-password`;
-    const resetLink = `${appUrl}?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
-    const smtpFrom = process.env.MAILER_FROM || 'no-reply@example.com';
+    const resetLink = `${config.frontendUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
     try {
       const transporter = await createMailTransport();
       await transporter.sendMail({
-        from: smtpFrom,
+        from: config.email.from,
         to: user.email,
         subject: 'Restablece tu contraseña',
         html: `<p>Hola ${user.name}, restablece tu contraseña haciendo clic aquí: <a href="${resetLink}">Restablecer</a></p>`

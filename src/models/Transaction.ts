@@ -1,5 +1,6 @@
-import mongoose, { Schema, Types } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { transactionsInterfaces } from '../interfaces';
+import { periodicity } from '../interfaces/transaction.interfaces';
 
 const transactionSchema = new Schema<transactionsInterfaces.ITransaction>({
   userId: {
@@ -14,6 +15,18 @@ const transactionSchema = new Schema<transactionsInterfaces.ITransaction>({
       values: ['income', 'expense'],
       message: 'El tipo debe ser "income" o "expense"'
     }
+  },
+  periodicity: {
+    type: Number,
+    enum: {
+      values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      message: 'La periodicidad debe ser un número entre 0 y 10'
+    },
+    default: 0
+  },
+  every: {
+    type: String,
+    default: null
   },
   amount: {
     type: Number,
@@ -49,5 +62,10 @@ const transactionSchema = new Schema<transactionsInterfaces.ITransaction>({
 transactionSchema.index({ userId: 1, date: -1 });
 transactionSchema.index({ userId: 1, type: 1 });
 transactionSchema.index({ userId: 1, category: 1 });
+
+transactionSchema.methods.getPeriodicityText = async (periodicityNumber: number): Promise<string> => {
+  const periodicityNames: {[key: number]: string} = periodicity;
+  return periodicityNames[periodicityNumber];
+};
 
 export const Transaction = mongoose.model<transactionsInterfaces.ITransaction>('Transaction', transactionSchema);

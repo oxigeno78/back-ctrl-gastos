@@ -3,6 +3,8 @@ import { Transaction } from '../models/Transaction';
 import { Category } from '../models/Categorys';
 import { z } from 'zod';
 import { Types } from 'mongoose';
+import { periodicity } from '../interfaces/transaction.interfaces';
+import { notificationService } from '../services/notifications/notification.service';
 
 // Helper para verificar si un string es un ObjectId válido
 const isValidObjectId = (str: string): boolean => Types.ObjectId.isValid(str) && new Types.ObjectId(str).toString() === str;
@@ -41,7 +43,9 @@ const createTransactionSchema = z.object({
   amount: z.number().positive('El monto debe ser mayor a 0'),
   category: z.string().min(1, 'La categoría es requerida').max(50, 'La categoría no puede exceder 50 caracteres'),
   description: z.string().min(1, 'La descripción es requerida').max(200, 'La descripción no puede exceder 200 caracteres'),
-  date: z.string().datetime().optional()
+  date: z.string().datetime().optional(),
+  periodicity: z.number().default(0).optional(),
+  every: z.string().optional(),
 });
 
 const getTransactionsSchema = z.object({
@@ -62,14 +66,16 @@ const updateTransactionSchema = z.object({
   amount: z.number().positive('El monto debe ser mayor a 0').optional(),
   category: z.string().min(1, 'La categoría es requerida').max(50, 'La categoría no puede exceder 50 caracteres').optional(),
   description: z.string().min(1, 'La descripción es requerida').max(200, 'La descripción no puede exceder 200 caracteres').optional(),
-  date: z.string().datetime().optional()
+  date: z.string().datetime().optional(),
+  periodicity: z.number().default(0).optional(),
+  every: z.string().optional()
 });
 
 // Crear nueva transacción
 export const createTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const validatedData = createTransactionSchema.parse(req.body);
-    const { type, amount, category, description, date } = validatedData;
+    const { type, amount, category, description, date, periodicity = 0, every } = validatedData;
 
     const transaction = new Transaction({
       userId: req.user!.id as any,
@@ -77,10 +83,19 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
       amount,
       category,
       description,
+      periodicity,
+      every: periodicity <= 1 ? null : every,
       date: date ? new Date(date) : new Date()
     });
 
     await transaction.save();
+    
+    // Enviar notificación
+    await notificationService.transactionCreated(
+      req.user!.id,
+      transaction.amount,
+      transaction.type
+    );
 
     res.status(201).json({
       success: true,
@@ -127,9 +142,11 @@ export const getTransactionById = async (req: Request, res: Response, next: Next
 // Actualizar transacción por ID
 export const updateTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const validatedData = updateTransactionSchema.parse(req.body);
+    const { type, amount, category, description, date, periodicity = 0, every } = validatedData;
     const transaction = await Transaction.findOneAndUpdate(
       { _id: req.params._id, deleted: false },
-      req.body,
+      { type, amount, category, description, date: date ? new Date(date) : new Date(), periodicity, every: periodicity <= 1 ? null : every },
       { new: true }
     );
     if (!transaction || transaction.deleted) {
@@ -139,6 +156,15 @@ export const updateTransaction = async (req: Request, res: Response, next: NextF
       });
       return;
     }
+    transaction.periodicityText = await transaction.getPeriodicityText(transaction.periodicity);
+
+    // Enviar notificación
+    await notificationService.transactionUpdated(
+      req.user!.id,
+      transaction.amount,
+      transaction.type
+    );
+    
     res.json({
       success: true,
       data: transaction
@@ -203,11 +229,12 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
       Transaction.countDocuments(filters)
     ]);
 
-    // Resolver nombres de categorías
+    // Resolver nombres de categorías y periodicityText
     const transactions = await Promise.all(
       rawTransactions.map(async (t) => ({
         ...t,
-        category: await resolveCategoryName(t.category)
+        category: await resolveCategoryName(t.category),
+        periodicityText: periodicity[t.periodicity as keyof typeof periodicity] || 'Disabled'
       }))
     );
 

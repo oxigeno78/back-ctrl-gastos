@@ -3,11 +3,13 @@ import * as userInterfaces from './user.interfaces';
 import * as transactionsInterfaces from './transaction.interfaces';
 import * as errorInterfaces from './error.interfaces';
 import * as categoriesInterfaces from './categories.interfaces';
+import * as notificationsInterfaces from './notifications.interface';
 
 export {
   authInterfaces,
   userInterfaces,
   transactionsInterfaces,
   errorInterfaces,
-  categoriesInterfaces
+  categoriesInterfaces,
+  notificationsInterfaces
 };

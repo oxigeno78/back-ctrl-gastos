@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import path from 'path';
 import favicon from 'serve-favicon';
@@ -11,9 +10,7 @@ import routes from './routes';
 import { errorHandler, notFound } from './middlewares/errorHandler';
 import { requestLogger, apiRateLimit, corsErrorHandler } from './middlewares/rateLimiting';
 import { swaggerSpec } from './swagger';
-
-// Cargar variables de entorno
-dotenv.config();
+import { config } from './config';
 
 const app = express();
 
@@ -25,8 +22,8 @@ app.use(helmet());
 
 // Configuración de CORS para permitir múltiples orígenes
 const allowedOrigins = [
-  `http://localhost:${process.env.PORT || 5000}`,
-  process.env.FRONTEND_URL
+  `http://localhost:${config.port}`,
+  config.frontendUrl
 ].filter(Boolean); // Eliminar valores undefined
 
 app.set('trust proxy', true);
@@ -63,16 +60,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(corsErrorHandler);
 
 // Documentación Swagger
-const apiBasePath = process.env.API_BASE_PATH || '/api/v1.0.0';
-const apiDocsPath = process.env.API_DOCS_PATH || '/api-docs';
 app.use(
-  apiBasePath+apiDocsPath,
+  config.apiBasePath + '/api-docs',
   swaggerUi.serve as unknown as express.RequestHandler[],
   swaggerUi.setup(swaggerSpec) as unknown as express.RequestHandler
 );
 
 // Rutas principales
-app.use(apiBasePath, routes);
+app.use(config.apiBasePath, routes);
 
 // Middleware para rutas no encontradas
 app.use(notFound);
@@ -87,11 +82,7 @@ app.get('/', (req, res) => {
 // Función para conectar a MongoDB
 const connectDB = async () => {
   try {
-    if (!process.env.MONGO_URI) {
-      throw new Error('MONGO_URI no está definida en las variables de entorno');
-    }
-
-    const conn = await mongoose.connect(process.env.MONGO_URI);
+    const conn = await mongoose.connect(config.mongoUri);
     console.log(`MongoDB conectado: ${conn.connection.host}`);
   } catch (error) {
     console.error('Error conectando a MongoDB:', error);
