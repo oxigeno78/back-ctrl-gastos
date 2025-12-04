@@ -6,6 +6,8 @@ API REST desarrollada con Express.js, TypeScript y MongoDB para el sistema de co
 
 - **Express.js** con TypeScript estricto
 - **MongoDB** con Mongoose ODM
+- **RabbitMQ** para sistema de notificaciones en tiempo real
+- **WebSockets** (Socket.io) para comunicación bidireccional
 - **JWT** para autenticación
 - **bcryptjs** para hash de contraseñas
 - **Zod** para validación de datos
@@ -19,6 +21,7 @@ API REST desarrollada con Express.js, TypeScript y MongoDB para el sistema de co
 
 - Node.js 20.19.5
 - MongoDB (local o Atlas)
+- RabbitMQ (para notificaciones en tiempo real)
 - npm o yarn
 
 ## 🛠️ Instalación
@@ -41,6 +44,10 @@ PORT=5000
 NODE_ENV=development
 JWT_EXPIRES_IN=7d
 RECAPTCHA_SECRET_KEY=xxx
+
+# RabbitMQ (notificaciones en tiempo real)
+ENABLE_REALTIME_NOTIFICATIONS=true
+RABBITMQ_URL=amqp://guest:guest@localhost:5672
 
 # Frontend y base de API
 FRONTEND_URL=http://localhost:3000
@@ -102,6 +109,7 @@ docker run -p 5000:5000 --env-file .env control-gastos-backend
  - `POST /api/v1.0.0/auth/recover-password` - Solicitar recuperación de contraseña
  - `POST /api/v1.0.0/auth/reset-password` - Restablecer contraseña
  - `POST /api/v1.0.0/auth/change-password` - Cambiar contraseña (requiere auth)
+ - `PUT /api/v1.0.0/auth/language` - Cambiar idioma del usuario (requiere auth)
  - `DELETE /api/v1.0.0/auth/account` - Eliminar cuenta de usuario (requiere auth)
 
 ### Transacciones
@@ -138,6 +146,12 @@ La respuesta incluye `periodicityText` con el texto legible de la periodicidad.
 - `PUT /api/v1.0.0/categories/categories/:_id` - Actualizar categoría de usuario (requiere auth)
 - `DELETE /api/v1.0.0/categories/categories/:_id` - Eliminar categoría de usuario (requiere auth)
 
+### Notificaciones
+- `POST /api/v1.0.0/notifications/:userId` - Obtener notificaciones no leídas (requiere auth)
+- `PUT /api/v1.0.0/notifications/:userId/:_id` - Marcar notificación como leída (requiere auth)
+- `PUT /api/v1.0.0/notifications/:userId` - Marcar todas las notificaciones como leídas (requiere auth)
+- `DELETE /api/v1.0.0/notifications/:userId/:_id` - Eliminar notificación (requiere auth)
+
 ### Métricas
 - `GET /api/v1.0.0/metrics` - Métricas del sistema (público)
 
@@ -165,37 +179,146 @@ La respuesta incluye `periodicityText` con el texto legible de la periodicidad.
   - En sandbox de SES, solo puedes enviar a/desde identidades verificadas.
   - Configura SPF/DKIM/DMARC en tu dominio para mejor entregabilidad.
 
+## 🔔 Sistema de Notificaciones
+
+El sistema de notificaciones utiliza RabbitMQ como broker de mensajes y WebSockets (Socket.io) para comunicación en tiempo real.
+
+### Arquitectura
+
+```
+┌─────────────┐     ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
+│  Acción     │────▶│  Publisher  │────▶│    RabbitMQ      │────▶│  Consumer   │
+│ (ej: crear  │     │  (rabbitmq  │     │  Exchange:       │     │ (guarda en  │
+│ transacción)│     │  .service)  │     │  notifications   │     │  MongoDB)   │
+└─────────────┘     └─────────────┘     └──────────────────┘     └──────┬──────┘
+                                                                        │
+                                                                        ▼
+                                                               ┌────────────────┐
+                                                               │ ¿Usuario       │
+                                                               │ conectado?     │
+                                                               └───────┬────────┘
+                                                                       │
+                                                    ┌──────────────────┴──────────────────┐
+                                                    │                                     │
+                                                    ▼                                     ▼
+                                           ┌───────────────┐                    ┌─────────────────┐
+                                           │ SÍ: Enviar    │                    │ NO: Guardar en  │
+                                           │ por WebSocket │                    │ MongoDB (leerá  │
+                                           └───────────────┘                    │ al reconectarse)│
+                                                                                └─────────────────┘
+```
+
+### Flujo de Notificaciones
+
+1. **Evento disparador**: Una acción (crear transacción, alerta de presupuesto, etc.) genera una notificación
+2. **Publisher**: Publica el mensaje al exchange `notifications` de RabbitMQ
+3. **Consumer**: Procesa el mensaje y lo guarda en MongoDB
+4. **Entrega**:
+   - **Usuario online**: Se envía inmediatamente por WebSocket
+   - **Usuario offline**: Se almacena en MongoDB, disponible vía API REST
+
+### Conexión WebSocket (Frontend)
+
+```typescript
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:5000', {
+  auth: { token: 'JWT_TOKEN' },
+  transports: ['websocket', 'polling'],
+});
+
+// Escuchar notificaciones
+socket.on('notification', (notification) => {
+  console.log('Nueva notificación:', notification);
+});
+```
+
+### Estructura de Notificación
+
+```typescript
+{
+  _id: string;
+  userId: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  // Soporte para i18n
+  titleKey?: string;
+  messageKey?: string;
+  messageParams?: Record<string, unknown>;
+  // O texto directo
+  title?: string;
+  message?: string;
+  link?: string;
+  read: boolean;
+  deleted: boolean;
+  createdAt: Date;
+}
+```
+
+### Configuración RabbitMQ
+
+```env
+RABBITMQ_URL=amqp://guest:guest@localhost:5672
+```
+
+Para desarrollo local con Docker:
+```bash
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+```
+
+Acceso a la consola de administración: `http://localhost:15672` (usuario: `guest`, contraseña: `guest`)
+
 ## 🏗️ Estructura del Proyecto
 
 ```
 backend/
 ├── src/
-│   ├── controllers/     # Controladores de rutas
+│   ├── controllers/          # Controladores de rutas
 │   │   ├── authController.ts
 │   │   ├── transactionController.ts
+│   │   ├── notificationsController.ts
 │   │   ├── metricsController.ts
 │   │   └── CategoriesController.ts
-│   ├── models/          # Modelos de MongoDB
+│   ├── interfaces/           # Interfaces TypeScript
+│   │   ├── auth.interfaces.ts
+│   │   ├── user.interfaces.ts
+│   │   ├── transaction.interfaces.ts
+│   │   ├── notifications.interface.ts
+│   │   ├── categories.interfaces.ts
+│   │   ├── error.interfaces.ts
+│   │   └── index.ts
+│   ├── models/               # Modelos de MongoDB
 │   │   ├── User.ts
 │   │   ├── Transaction.ts
+│   │   ├── Notification.ts
 │   │   └── Categorys.ts
-│   ├── routes/          # Definición de rutas
+│   ├── routes/               # Definición de rutas
 │   │   ├── authRoutes.ts
 │   │   ├── transactionRoutes.ts
+│   │   ├── notificationsRoutes.ts
 │   │   ├── metricsRoutes.ts
-│   │   ├── catewgoriesRoutes.ts
+│   │   ├── categoriesRoutes.ts
 │   │   └── index.ts
-│   ├── services/        # Lógica de negocio
-│   ├── middlewares/     # Middlewares personalizados
+│   ├── services/             # Lógica de negocio
+│   │   ├── notifications/    # Servicios de notificaciones
+│   │   │   ├── rabbitmq.service.ts    # Publisher RabbitMQ
+│   │   │   └── notification.service.ts # Servicio de alto nivel
+│   │   ├── consumers/        # Consumidores de mensajes
+│   │   │   └── notification.consumer.ts
+│   │   └── websocket/        # WebSocket server
+│   │       └── socket.server.ts
+│   ├── middlewares/          # Middlewares personalizados
 │   │   ├── errorHandler.ts
 │   │   └── rateLimiting.ts
-│   ├── utils/           # Utilidades
-│   ├── app.ts           # Configuración de Express
-│   ├── swagger.ts       # Configuración de Swagger/OpenAPI
-│   └── server.ts        # Punto de entrada
-├── Dockerfile           # Imagen Docker
-├── .dockerignore        # Archivos a ignorar en Docker
-├── env.example          # Variables de entorno de ejemplo
+│   ├── config/               # Configuración centralizada
+│   │   ├── env.config.ts     # Variables de entorno
+│   │   └── index.ts
+│   ├── utils/                # Utilidades
+│   ├── app.ts                # Configuración de Express
+│   ├── swagger.ts            # Configuración de Swagger/OpenAPI
+│   └── server.ts             # Punto de entrada
+├── Dockerfile                # Imagen Docker
+├── .dockerignore             # Archivos a ignorar en Docker
+├── env.example               # Variables de entorno de ejemplo
 ├── package.json
 └── tsconfig.json
 ```
@@ -214,13 +337,15 @@ backend/
 - TypeScript
 - MongoDB
 - Mongoose
+- RabbitMQ (amqplib)
+- Socket.io
 - JWT
 - bcryptjs
 - Zod
- - Nodemailer
- - AWS SES (@aws-sdk/client-sesv2)
- - SendGrid (@sendgrid/mail)
- - Google reCAPTCHA
+- Nodemailer
+- AWS SES (@aws-sdk/client-sesv2)
+- SendGrid (@sendgrid/mail)
+- Google reCAPTCHA
 - CORS
 - Helmet
 - Morgan
@@ -294,6 +419,16 @@ MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/control-gastos
 - Verifica que `JWT_SECRET` esté configurado
 - Revisa que el token no haya expirado
 - Asegúrate de que el middleware de autenticación esté funcionando
+
+### Error de conexión a RabbitMQ
+- Verifica que RabbitMQ esté ejecutándose: `docker ps` o `systemctl status rabbitmq-server`
+- Revisa la variable `RABBITMQ_URL` en `.env`
+- Si cambiaste el tipo de exchange, elimínalo primero desde la consola de administración (`http://localhost:15672`)
+
+### Notificaciones no llegan
+- Verifica que el consumer esté conectado (busca en logs: `✅ NotificationConsumer: Conectado`)
+- Revisa que el usuario esté conectado por WebSocket para recibir en tiempo real
+- Las notificaciones offline se obtienen vía API REST: `POST /api/v1.0.0/notifications/:userId`
 
 ## 📚 Documentación API (Swagger)
 

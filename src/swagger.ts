@@ -1,7 +1,8 @@
 import swaggerJSDoc from 'swagger-jsdoc';
+import { config } from './config';
 
-const apiBasePath = process.env.API_BASE_PATH || '/api/v1.0.0';
-const apiBaseUrl = process.env.API_URL_BASE || `http://localhost:${process.env.PORT || 5000}`;
+const apiBasePath = config.apiBasePath;
+const apiBaseUrl = config.apiUrlBase;
 
 const options: swaggerJSDoc.Options = {
   definition: {
@@ -25,6 +26,7 @@ const options: swaggerJSDoc.Options = {
       { name: 'Auth', description: 'Autenticación y gestión de usuarios' },
       { name: 'Transactions', description: 'Gestión de transacciones (ingresos/gastos)' },
       { name: 'Categories', description: 'Gestión de categorías' },
+      { name: 'Notifications', description: 'Sistema de notificaciones' },
       { name: 'Metrics', description: 'Métricas del sistema' },
     ],
     components: {
@@ -113,6 +115,24 @@ const options: swaggerJSDoc.Options = {
             transactionType: { type: 'string', enum: ['income', 'expense'], example: 'expense', description: 'Tipo de transacción asociada a la categoría' },
             description: { type: 'string', maxLength: 200, example: 'Gastos de ocio y diversión' },
             color: { type: 'string', maxLength: 7, example: '#3498DB' },
+          },
+        },
+        Notification: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            type: { type: 'string', enum: ['info', 'success', 'warning', 'error'], example: 'success' },
+            title: { type: 'string', example: 'Transacción creada', description: 'Título directo (opcional si usa i18n)' },
+            message: { type: 'string', example: 'Se ha registrado un ingreso de $500', description: 'Mensaje directo (opcional si usa i18n)' },
+            titleKey: { type: 'string', example: 'notifications.messages.transactionCreatedTitle', description: 'Clave i18n para el título' },
+            messageKey: { type: 'string', example: 'notifications.messages.transactionCreatedMessage', description: 'Clave i18n para el mensaje' },
+            messageParams: { type: 'object', example: { type: 'income', amount: 500 }, description: 'Parámetros para interpolación i18n' },
+            link: { type: 'string', example: '/dashboard/transactions', description: 'Enlace de acción' },
+            read: { type: 'boolean', example: false },
+            deleted: { type: 'boolean', example: false },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
           },
         },
         Metrics: {
@@ -439,6 +459,35 @@ const options: swaggerJSDoc.Options = {
           },
         },
       },
+      // Auth - Change Language
+      '/auth/language': {
+        put: {
+          tags: ['Auth'],
+          summary: 'Cambiar idioma',
+          description: 'Cambia el idioma preferido del usuario',
+          security: [{ BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['email', 'language'],
+                  properties: {
+                    email: { type: 'string', format: 'email', example: 'juan@ejemplo.com' },
+                    language: { type: 'string', minLength: 3, maxLength: 3, example: 'esp', description: 'Código de idioma (3 caracteres)' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: 'Idioma cambiado exitosamente' },
+            401: { description: 'No autenticado' },
+            404: { description: 'Usuario no encontrado' },
+          },
+        },
+      },
       // Auth - Delete Account
       '/auth/account': {
         delete: {
@@ -751,6 +800,127 @@ const options: swaggerJSDoc.Options = {
             401: { description: 'No autenticado' },
             403: { description: 'No se pueden eliminar categorías del sistema' },
             404: { description: 'Categoría no encontrada' },
+          },
+        },
+      },
+      // Notifications
+      '/notifications/{userId}': {
+        post: {
+          tags: ['Notifications'],
+          summary: 'Obtener notificaciones no leídas',
+          description: 'Obtiene las notificaciones no leídas del usuario',
+          security: [{ BearerAuth: [] }],
+          parameters: [
+            { name: 'userId', in: 'path', required: true, schema: { type: 'string' }, description: 'ID del usuario' },
+          ],
+          responses: {
+            200: {
+              description: 'Notificación encontrada',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: { $ref: '#/components/schemas/Notification' },
+                    },
+                  },
+                },
+              },
+            },
+            204: { description: 'No hay notificaciones no leídas' },
+            401: { description: 'No autenticado' },
+          },
+        },
+        put: {
+          tags: ['Notifications'],
+          summary: 'Marcar todas como leídas',
+          description: 'Marca todas las notificaciones del usuario como leídas',
+          security: [{ BearerAuth: [] }],
+          parameters: [
+            { name: 'userId', in: 'path', required: true, schema: { type: 'string' }, description: 'ID del usuario' },
+          ],
+          responses: {
+            200: {
+              description: 'Notificaciones marcadas como leídas',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: {
+                        type: 'object',
+                        properties: {
+                          matchedCount: { type: 'integer', example: 5 },
+                          modifiedCount: { type: 'integer', example: 5 },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            204: { description: 'No hay notificaciones' },
+            401: { description: 'No autenticado' },
+          },
+        },
+      },
+      '/notifications/{userId}/{_id}': {
+        put: {
+          tags: ['Notifications'],
+          summary: 'Marcar notificación como leída',
+          description: 'Marca una notificación específica como leída',
+          security: [{ BearerAuth: [] }],
+          parameters: [
+            { name: 'userId', in: 'path', required: true, schema: { type: 'string' }, description: 'ID del usuario' },
+            { name: '_id', in: 'path', required: true, schema: { type: 'string' }, description: 'ID de la notificación' },
+          ],
+          responses: {
+            200: {
+              description: 'Notificación marcada como leída',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: { $ref: '#/components/schemas/Notification' },
+                    },
+                  },
+                },
+              },
+            },
+            204: { description: 'Notificación no encontrada' },
+            401: { description: 'No autenticado' },
+          },
+        },
+        delete: {
+          tags: ['Notifications'],
+          summary: 'Eliminar notificación',
+          description: 'Elimina (soft delete) una notificación',
+          security: [{ BearerAuth: [] }],
+          parameters: [
+            { name: 'userId', in: 'path', required: true, schema: { type: 'string' }, description: 'ID del usuario' },
+            { name: '_id', in: 'path', required: true, schema: { type: 'string' }, description: 'ID de la notificación' },
+          ],
+          responses: {
+            200: {
+              description: 'Notificación eliminada',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: { $ref: '#/components/schemas/Notification' },
+                    },
+                  },
+                },
+              },
+            },
+            204: { description: 'Notificación no encontrada' },
+            401: { description: 'No autenticado' },
           },
         },
       },

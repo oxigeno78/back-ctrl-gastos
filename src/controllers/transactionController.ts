@@ -4,6 +4,7 @@ import { Category } from '../models/Categorys';
 import { z } from 'zod';
 import { Types } from 'mongoose';
 import { periodicity } from '../interfaces/transaction.interfaces';
+import { notificationService } from '../services/notifications/notification.service';
 
 // Helper para verificar si un string es un ObjectId válido
 const isValidObjectId = (str: string): boolean => Types.ObjectId.isValid(str) && new Types.ObjectId(str).toString() === str;
@@ -88,6 +89,13 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
     });
 
     await transaction.save();
+    
+    // Enviar notificación
+    await notificationService.transactionCreated(
+      req.user!.id,
+      transaction.amount,
+      transaction.type
+    );
 
     res.status(201).json({
       success: true,
@@ -133,11 +141,9 @@ export const getTransactionById = async (req: Request, res: Response, next: Next
 
 // Actualizar transacción por ID
 export const updateTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  console.log('transactionController|updateTransaction] periodicityOptions', periodicity);
   try {
     const validatedData = updateTransactionSchema.parse(req.body);
     const { type, amount, category, description, date, periodicity = 0, every } = validatedData;
-    console.log('transactionController|updateTransaction] periodicity', periodicity, every);
     const transaction = await Transaction.findOneAndUpdate(
       { _id: req.params._id, deleted: false },
       { type, amount, category, description, date: date ? new Date(date) : new Date(), periodicity, every: periodicity <= 1 ? null : every },
@@ -151,6 +157,14 @@ export const updateTransaction = async (req: Request, res: Response, next: NextF
       return;
     }
     transaction.periodicityText = await transaction.getPeriodicityText(transaction.periodicity);
+
+    // Enviar notificación
+    await notificationService.transactionUpdated(
+      req.user!.id,
+      transaction.amount,
+      transaction.type
+    );
+    
     res.json({
       success: true,
       data: transaction

@@ -3,6 +3,7 @@ import authRoutes from './authRoutes';
 import transactionRoutes from './transactionRoutes';
 import metricsRoutes from './metricsRoutes';
 import categoriesRoutes from './categoriesRoutes';
+import notificationsRoutes from './notificationsRoutes';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ router.use('/auth', authRoutes);
 router.use('/transactions', transactionRoutes);
 router.use('/metrics', metricsRoutes);
 router.use('/categories', categoriesRoutes);
+router.use('/notifications', notificationsRoutes);
 
 // Ruta de salud
 router.get('/health', (req, res) => {
