@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import os from 'os';
+import { config } from '../config';
 
 export const getMetrics = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -51,7 +52,7 @@ export const getMetrics = async (req: Request, res: Response, next: NextFunction
       app: {
         nodeVersion: process.version,
         pid: process.pid,
-        environment: process.env.NODE_ENV || 'development',
+        environment: config.nodeEnv,
         timestamp: new Date().toISOString()
       },
       

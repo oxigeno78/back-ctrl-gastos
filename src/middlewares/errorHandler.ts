@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { errorInterfaces } from '../interfaces';
+import { config } from '../config';
 
 // Middleware centralizado de manejo de errores
 export const errorHandler = (
@@ -80,7 +81,7 @@ export const errorHandler = (
   res.status(error.statusCode || 500).json({
     success: false,
     message: error.message || 'Error interno del servidor',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(config.isDev && { stack: err.stack })
   });
 };
 
