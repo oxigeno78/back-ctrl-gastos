@@ -11,6 +11,7 @@ import { errorHandler, notFound } from './middlewares/errorHandler';
 import { requestLogger, apiRateLimit, corsErrorHandler } from './middlewares/rateLimiting';
 import { swaggerSpec } from './swagger';
 import { config } from './config';
+import { startCleanupJob } from './jobs';
 
 const app = express();
 
@@ -52,8 +53,17 @@ app.use(morgan('combined'));
 app.use(requestLogger);
 app.use(apiRateLimit);
 
-// Middleware para parsear JSON
-app.use(express.json({ limit: '10mb' }));
+// Stripe webhook necesita el body raw ANTES de express.json()
+// Por eso usamos una función condicional
+app.use((req, res, next) => {
+  if (req.originalUrl === `${config.apiBasePath}/stripe/webhook`) {
+    // Para el webhook de Stripe, usar raw body
+    express.raw({ type: 'application/json' })(req, res, next);
+  } else {
+    // Para el resto de rutas, usar JSON parser normal
+    express.json({ limit: '10mb' })(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Middleware para manejar errores de CORS
@@ -103,5 +113,8 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-export { connectDB };
+// Iniciar jobs programados
+const cleanupJob = startCleanupJob();
+
+export { connectDB, cleanupJob };
 export default app;

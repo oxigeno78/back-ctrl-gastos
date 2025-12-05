@@ -12,6 +12,7 @@ API REST desarrollada con Express.js, TypeScript y MongoDB para el sistema de co
 - **bcryptjs** para hash de contraseñas
 - **Zod** para validación de datos
 - **Swagger/OpenAPI** para documentación interactiva
+- **Stripe** para suscripciones y pagos
 - Arquitectura limpia con principios SOLID
 - Middleware centralizado para errores y logs
 - Rate limiting y seguridad con Helmet
@@ -71,6 +72,11 @@ SMTP_HOST=email-smtp.us-east-1.amazonaws.com
 SMTP_PORT=465
 SMTP_USER=
 SMTP_PASS=
+
+# Stripe (suscripciones)
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_PRICE_ID=price_xxx
 ```
 
 ### 3. Ejecutar la aplicación
@@ -152,6 +158,12 @@ La respuesta incluye `periodicityText` con el texto legible de la periodicidad.
 - `PUT /api/v1.0.0/notifications/:userId` - Marcar todas las notificaciones como leídas (requiere auth)
 - `DELETE /api/v1.0.0/notifications/:userId/:_id` - Eliminar notificación (requiere auth)
 
+### Stripe (Suscripciones)
+- `POST /api/v1.0.0/stripe/create-checkout-session` - Crear sesión de checkout (requiere auth)
+- `POST /api/v1.0.0/stripe/webhook` - Webhook de Stripe (sin auth, usa firma)
+- `POST /api/v1.0.0/stripe/customer-portal` - Portal de cliente Stripe (requiere auth)
+- `GET /api/v1.0.0/stripe/subscription-status/:userId` - Estado de suscripción (requiere auth)
+
 ### Métricas
 - `GET /api/v1.0.0/metrics` - Métricas del sistema (público)
 
@@ -178,6 +190,129 @@ La respuesta incluye `periodicityText` con el texto legible de la periodicidad.
 - **Notas**
   - En sandbox de SES, solo puedes enviar a/desde identidades verificadas.
   - Configura SPF/DKIM/DMARC en tu dominio para mejor entregabilidad.
+
+## 💳 Sistema de Suscripciones (Stripe)
+
+El sistema utiliza Stripe Checkout para gestionar suscripciones mensuales.
+
+### Período de Prueba Gratuito
+
+- **Todos los nuevos usuarios reciben automáticamente 7 días de prueba gratuita** al registrarse.
+- Durante el período de prueba, el usuario tiene acceso completo a todas las funciones.
+- El estado de suscripción será `trialing` durante este período.
+- Al finalizar el período de prueba, el usuario deberá completar el pago para continuar usando el servicio.
+
+### Política de Cuentas Inactivas
+
+El sistema ejecuta automáticamente un job de limpieza diario (3:00 AM) que elimina cuentas inactivas:
+
+- **Cuentas con suscripción cancelada/incompleta/impaga** por más de 30 días.
+- **Cuentas con período de prueba expirado** hace más de 30 días sin suscripción activa.
+- **Cuentas sin verificar email** por más de 30 días.
+
+> ⚠️ Los usuarios pueden reactivar su cuenta iniciando una nueva suscripción antes de que se cumpla el plazo de 30 días.
+
+### Flujo de Suscripción
+
+```
+┌─────────────┐     ┌─────────────────────┐     ┌─────────────────┐
+│  Usuario    │────▶│  POST /stripe/      │────▶│  Stripe         │
+│  registrado │     │  create-checkout-   │     │  Checkout       │
+│             │     │  session            │     │  (pago)         │
+└─────────────┘     └─────────────────────┘     └────────┬────────┘
+                                                         │
+                                                         ▼
+┌─────────────┐     ┌─────────────────────┐     ┌─────────────────┐
+│  Usuario    │◀────│  Actualizar estado  │◀────│  Webhook        │
+│  con        │     │  subscriptionStatus │     │  /stripe/       │
+│  suscripción│     │  en MongoDB         │     │  webhook        │
+└─────────────┘     └─────────────────────┘     └─────────────────┘
+```
+
+### Endpoints
+
+#### POST `/stripe/create-checkout-session`
+Crea una sesión de Stripe Checkout para iniciar el pago.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+```json
+{
+  "userId": "string"
+}
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": "cs_xxx",
+    "url": "https://checkout.stripe.com/..."
+  }
+}
+```
+
+#### POST `/stripe/webhook`
+Recibe eventos de Stripe (checkout completado, suscripción actualizada, pago fallido, etc.).
+
+**Headers:** `stripe-signature: <firma>`
+
+**Eventos manejados:**
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.payment_failed`
+
+#### POST `/stripe/customer-portal`
+Genera URL al portal de Stripe donde el usuario puede gestionar su suscripción.
+
+**Body:**
+```json
+{
+  "userId": "string"
+}
+```
+
+#### GET `/stripe/subscription-status/:userId`
+Obtiene el estado actual de la suscripción.
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "data": {
+    "hasSubscription": false,
+    "status": "trialing",
+    "currentPeriodEnd": "2025-01-11T00:00:00.000Z",
+    "isActive": true,
+    "isTrial": true,
+    "daysRemaining": 7
+  }
+}
+```
+
+### Configuración en Stripe Dashboard
+
+1. Crear un **Producto** con un **Precio** recurrente mensual
+2. Copiar el `price_id` (ej: `price_1ABC...`) a `STRIPE_PRICE_ID`
+3. Configurar el webhook apuntando a `https://tu-dominio.com/api/v1.0.0/stripe/webhook`
+4. Seleccionar eventos: `checkout.session.completed`, `customer.subscription.*`, `invoice.payment_failed`
+5. Copiar el webhook secret a `STRIPE_WEBHOOK_SECRET`
+
+### Estados de Suscripción
+
+| Estado | Descripción |
+|--------|-------------|
+| `incomplete` | Pago pendiente |
+| `active` | Suscripción activa |
+| `past_due` | Pago atrasado |
+| `canceled` | Cancelada |
+| `unpaid` | Sin pagar |
+| `trialing` | En período de prueba |
+| `paused` | Pausada |
 
 ## 🔔 Sistema de Notificaciones
 
@@ -277,7 +412,8 @@ backend/
 │   │   ├── transactionController.ts
 │   │   ├── notificationsController.ts
 │   │   ├── metricsController.ts
-│   │   └── CategoriesController.ts
+│   │   ├── CategoriesController.ts
+│   │   └── stripeController.ts
 │   ├── interfaces/           # Interfaces TypeScript
 │   │   ├── auth.interfaces.ts
 │   │   ├── user.interfaces.ts
@@ -297,6 +433,7 @@ backend/
 │   │   ├── notificationsRoutes.ts
 │   │   ├── metricsRoutes.ts
 │   │   ├── categoriesRoutes.ts
+│   │   ├── stripeRoutes.ts
 │   │   └── index.ts
 │   ├── services/             # Lógica de negocio
 │   │   ├── notifications/    # Servicios de notificaciones
@@ -352,6 +489,7 @@ backend/
 - Express Rate Limit
 - Swagger UI Express
 - Swagger JSDoc
+- Stripe
 
 ## 🔒 Seguridad
 

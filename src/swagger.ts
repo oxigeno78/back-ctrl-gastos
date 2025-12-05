@@ -28,6 +28,7 @@ const options: swaggerJSDoc.Options = {
       { name: 'Categories', description: 'Gestión de categorías' },
       { name: 'Notifications', description: 'Sistema de notificaciones' },
       { name: 'Metrics', description: 'Métricas del sistema' },
+      { name: 'Stripe', description: 'Suscripciones y pagos con Stripe' },
     ],
     components: {
       securitySchemes: {
@@ -163,6 +164,24 @@ const options: swaggerJSDoc.Options = {
               },
             },
             dbStatus: { type: 'string' },
+          },
+        },
+        SubscriptionStatus: {
+          type: 'object',
+          properties: {
+            hasSubscription: { type: 'boolean', example: true },
+            status: { type: 'string', enum: ['incomplete', 'active', 'past_due', 'canceled', 'unpaid', 'trialing', 'paused'], example: 'trialing', description: 'Estado de la suscripción. Los nuevos usuarios inician con "trialing" (período de prueba de 7 días)' },
+            currentPeriodEnd: { type: 'string', format: 'date-time', example: '2025-01-11T00:00:00.000Z', description: 'Fecha de fin del período actual (prueba o suscripción)' },
+            isActive: { type: 'boolean', example: true, description: 'true si status es "active" o "trialing"' },
+            isTrial: { type: 'boolean', example: true, description: 'true si el usuario está en período de prueba' },
+            daysRemaining: { type: 'integer', example: 7, description: 'Días restantes del período actual' },
+          },
+        },
+        CheckoutSession: {
+          type: 'object',
+          properties: {
+            sessionId: { type: 'string', example: 'cs_test_xxx' },
+            url: { type: 'string', format: 'uri', example: 'https://checkout.stripe.com/c/pay/cs_test_xxx' },
           },
         },
       },
@@ -946,6 +965,161 @@ const options: swaggerJSDoc.Options = {
                 },
               },
             },
+          },
+        },
+      },
+      // Stripe - Create Checkout Session
+      '/stripe/create-checkout-session': {
+        post: {
+          tags: ['Stripe'],
+          summary: 'Crear sesión de checkout',
+          description: 'Crea una sesión de Stripe Checkout para iniciar el proceso de suscripción mensual. Redirige al usuario a la página de pago de Stripe.',
+          security: [{ BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['userId'],
+                  properties: {
+                    userId: { type: 'string', example: '507f1f77bcf86cd799439011', description: 'ID del usuario en MongoDB' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: 'Sesión de checkout creada exitosamente',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: { $ref: '#/components/schemas/CheckoutSession' },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'El usuario ya tiene una suscripción activa o datos inválidos' },
+            401: { description: 'No autenticado' },
+            404: { description: 'Usuario no encontrado' },
+          },
+        },
+      },
+      // Stripe - Webhook
+      '/stripe/webhook': {
+        post: {
+          tags: ['Stripe'],
+          summary: 'Webhook de Stripe',
+          description: 'Endpoint para recibir eventos de Stripe (checkout completado, suscripción actualizada, pago fallido, etc.). No requiere autenticación JWT, usa firma de Stripe.',
+          security: [],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  description: 'Evento de Stripe (raw body)',
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: 'Evento procesado correctamente',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      received: { type: 'boolean', example: true },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'Firma inválida o evento malformado' },
+          },
+        },
+      },
+      // Stripe - Customer Portal
+      '/stripe/customer-portal': {
+        post: {
+          tags: ['Stripe'],
+          summary: 'Portal de cliente',
+          description: 'Genera una URL al portal de Stripe donde el usuario puede gestionar su suscripción (cancelar, actualizar método de pago, ver facturas, etc.)',
+          security: [{ BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['userId'],
+                  properties: {
+                    userId: { type: 'string', example: '507f1f77bcf86cd799439011', description: 'ID del usuario en MongoDB' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: 'URL del portal generada',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: {
+                        type: 'object',
+                        properties: {
+                          url: { type: 'string', format: 'uri', example: 'https://billing.stripe.com/p/session/xxx' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'El usuario no tiene cuenta de Stripe asociada' },
+            401: { description: 'No autenticado' },
+            404: { description: 'Usuario no encontrado' },
+          },
+        },
+      },
+      // Stripe - Subscription Status
+      '/stripe/subscription-status/{userId}': {
+        get: {
+          tags: ['Stripe'],
+          summary: 'Estado de suscripción',
+          description: 'Obtiene el estado actual de la suscripción del usuario',
+          security: [{ BearerAuth: [] }],
+          parameters: [
+            { name: 'userId', in: 'path', required: true, schema: { type: 'string' }, description: 'ID del usuario' },
+          ],
+          responses: {
+            200: {
+              description: 'Estado de suscripción',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: { $ref: '#/components/schemas/SubscriptionStatus' },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: 'No autenticado' },
+            404: { description: 'Usuario no encontrado' },
           },
         },
       },
