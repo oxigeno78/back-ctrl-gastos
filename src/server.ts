@@ -22,12 +22,12 @@ const startServer = async () => {
     httpServer.listen(config.port, () => {
       console.log(`🚀 Servidor ejecutándose en puerto ${config.port}`);
       if (config.realtime.enabled) {
-        console.log(`🔌 WebSocket disponible en ws://localhost:${config.port}/socket.io/`);
+        console.log(`🔌 WebSocket disponible en ws://${config.apiHostName}:${config.port}/socket.io/`);
       } else {
         console.log(`ℹ️ Notificaciones en tiempo real deshabilitadas`);
       }
-      console.log(`📊 Métricas disponibles en ${config.apiUrlBase}${config.apiBasePath}/metrics`);
-      console.log(`🔍 Health check en ${config.apiUrlBase}${config.apiBasePath}/health`);
+      console.log(`📊 Métricas disponibles en ${config.apiUrlBase}:${config.port}${config.apiBasePath}/metrics`);
+      console.log(`🔍 Health check en ${config.apiUrlBase}:${config.port}${config.apiBasePath}/health`);
     });
   } catch (error) {
     console.error('Error iniciando servidor:', error);

@@ -12,9 +12,10 @@ const createCategorySchema = z.object({
     color: z.string().min(1, 'El color es requerido').max(7, 'El color debe tener al menos 7 caracteres')
 });
 
-const getCategoriesSchema = z.object({
-    _id: z.string().min(1, 'El ID es requerido')
-});
+// NOTA: getCategoriesSchema no se usa - getCategories no requiere parámetros
+// const getCategoriesSchema = z.object({
+//     _id: z.string().min(1, 'El ID es requerido')
+// });
 
 const updateCategorySchema = z.object({
     name: z.string().min(1, 'El nombre es requerido').max(50, 'El nombre no puede exceder 50 caracteres'),
@@ -82,6 +83,7 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
         const validatedData = updateCategorySchema.parse(req.body);
         const { name, transactionType, description, color } = validatedData;
 
+        // Verificar que la categoría pertenezca al usuario o sea del sistema
         const category = await Category.findOne({ _id, deleted: false });
         
         if (!category || category.deleted) {
@@ -98,10 +100,18 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
             });
             return;
         }
-        const type = 'user';
+
+        // Verificar que la categoría pertenezca al usuario autenticado
+        if (category.userId?.toString() !== req.user!.id) {
+            res.status(403).json({
+                success: false,
+                message: 'No tienes permiso para modificar esta categoría'
+            });
+            return;
+        }
 
         const updatedCategory = await Category.findOneAndUpdate(
-            { _id, deleted: false, type },
+            { _id, userId: req.user!.id, deleted: false, type: 'user' },
             { name, transactionType, description, color },
             { new: true }
         );
@@ -144,8 +154,17 @@ export const deleteCategory = async (req: Request, res: Response, next: NextFunc
             return;
         }
 
+        // Verificar que la categoría pertenezca al usuario autenticado
+        if (existingCategory.userId?.toString() !== req.user!.id) {
+            res.status(403).json({
+                success: false,
+                message: 'No tienes permiso para eliminar esta categoría'
+            });
+            return;
+        }
+
         const category = await Category.findOneAndUpdate(
-            { _id, deleted: false },
+            { _id, userId: req.user!.id, deleted: false, type: 'user' },
             { deleted: true },
             { new: true }
         );
