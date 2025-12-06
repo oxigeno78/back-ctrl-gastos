@@ -591,6 +591,9 @@ API_DOCS_PATH=/api-docs
 
 ## 📄 Licencia
 
-Este proyecto es software propietario. Todos los derechos reservados.
+Todos los derechos reservados.
+Este proyecto es software propietario y confidencial.
 
 **UNLICENSED** - No se permite el uso, copia, modificación o distribución sin autorización expresa del autor.
+
+© 2025 NizerApp / Ruben Bautista Mendoza
