@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 import path from 'path';
 import favicon from 'serve-favicon';
@@ -11,6 +12,7 @@ import { errorHandler, notFound } from './middlewares/errorHandler';
 import { requestLogger, apiRateLimit, corsErrorHandler } from './middlewares/rateLimiting';
 import { swaggerSpec } from './swagger';
 import { config } from './config';
+import { startCleanupJob } from './jobs';
 
 const app = express();
 
@@ -47,13 +49,25 @@ app.use(cors({
   maxAge: 86400 // 24 horas
 }));
 
+// Cookie parser (antes de las rutas)
+app.use(cookieParser(config.cookie.secret));
+
 // Middlewares de logging y rate limiting
 app.use(morgan('combined'));
 app.use(requestLogger);
 app.use(apiRateLimit);
 
-// Middleware para parsear JSON
-app.use(express.json({ limit: '10mb' }));
+// Stripe webhook necesita el body raw ANTES de express.json()
+// Por eso usamos una función condicional
+app.use((req, res, next) => {
+  if (req.originalUrl === `${config.apiBasePath}/stripe/webhook`) {
+    // Para el webhook de Stripe, usar raw body
+    express.raw({ type: 'application/json' })(req, res, next);
+  } else {
+    // Para el resto de rutas, usar JSON parser normal
+    express.json({ limit: '10mb' })(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Middleware para manejar errores de CORS
@@ -103,5 +117,8 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-export { connectDB };
+// Iniciar jobs programados
+const cleanupJob = startCleanupJob();
+
+export { connectDB, cleanupJob };
 export default app;

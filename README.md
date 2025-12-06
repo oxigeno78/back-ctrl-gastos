@@ -8,10 +8,11 @@ API REST desarrollada con Express.js, TypeScript y MongoDB para el sistema de co
 - **MongoDB** con Mongoose ODM
 - **RabbitMQ** para sistema de notificaciones en tiempo real
 - **WebSockets** (Socket.io) para comunicación bidireccional
-- **JWT** para autenticación
+- **JWT** con **HTTP-only cookies** para autenticación segura
 - **bcryptjs** para hash de contraseñas
 - **Zod** para validación de datos
 - **Swagger/OpenAPI** para documentación interactiva
+- **Stripe** para suscripciones y pagos
 - Arquitectura limpia con principios SOLID
 - Middleware centralizado para errores y logs
 - Rate limiting y seguridad con Helmet
@@ -36,79 +37,28 @@ npm install
 cp env.example .env
 ```
 
-Editar `.env`:
-```env
-MONGO_URI=mongodb+srv://user:pass@cluster/db
-JWT_SECRET=supersecretkey
-PORT=5000
-NODE_ENV=development
-JWT_EXPIRES_IN=7d
-RECAPTCHA_SECRET_KEY=xxx
-
-# RabbitMQ (notificaciones en tiempo real)
-ENABLE_REALTIME_NOTIFICATIONS=true
-RABBITMQ_URL=amqp://guest:guest@localhost:5672
-
-# Frontend y base de API
-FRONTEND_URL=http://localhost:3000
-API_URL_BASE=http://localhost
-API_BASE_PATH=/api/v1.0.0
-
-# Proveedor de email: smtp | ses | sendgrid
-EMAIL_PROVIDER=ses
-MAILER_FROM=noreply@example.com
-
-# Configuración SES (si EMAIL_PROVIDER=ses)
-AWS_REGION=us-east-1
-# AWS_ACCESS_KEY_ID=
-# AWS_SECRET_ACCESS_KEY=
-
-# Configuración SendGrid (si EMAIL_PROVIDER=sendgrid)
-SENDGRID_API_KEY=
-
-# Configuración SMTP (si EMAIL_PROVIDER=smtp)
-SMTP_HOST=email-smtp.us-east-1.amazonaws.com
-SMTP_PORT=465
-SMTP_USER=
-SMTP_PASS=
-```
+Edita el archivo `.env` con tus valores. Consulta `env.example` para ver todas las variables disponibles.
 
 ### 3. Ejecutar la aplicación
-
-#### Desarrollo
 ```bash
 npm run dev
-```
-
-#### Producción
-```bash
-npm run build
-npm start
-```
-
-## 🐳 Docker
-
-### Construir imagen
-```bash
-docker build -t control-gastos-backend .
-```
-
-### Ejecutar contenedor
-```bash
-docker run -p 5000:5000 --env-file .env control-gastos-backend
 ```
 
 ## 📡 API Endpoints
 
 ### Autenticación
+
+> ⚠️ **Nota**: La autenticación usa HTTP-only cookies. El frontend debe incluir `credentials: 'include'` en todas las peticiones.
+
  - `POST /api/v1.0.0/auth/register` - Registro de usuario
- - `POST /api/v1.0.0/auth/login` - Login de usuario
- - `POST /api/v1.0.0/auth/logout` - Cierre de sesión (requiere auth)
+ - `POST /api/v1.0.0/auth/login` - Login (establece cookie HTTP-only)
+ - `POST /api/v1.0.0/auth/logout` - Cierre de sesión (limpia cookie, requiere auth)
+ - `GET /api/v1.0.0/auth/me` - Obtener usuario actual (verificar sesión, requiere auth)
  - `GET /api/v1.0.0/auth/verify` - Verificar correo electrónico
  - `POST /api/v1.0.0/auth/resend-verification` - Reenviar correo de verificación
  - `POST /api/v1.0.0/auth/recover-password` - Solicitar recuperación de contraseña
  - `POST /api/v1.0.0/auth/reset-password` - Restablecer contraseña
- - `POST /api/v1.0.0/auth/change-password` - Cambiar contraseña (requiere auth)
+ - `POST /api/v1.0.0/auth/change-password` - Cambiar contraseña (requiere auth, verifica contraseña actual)
  - `PUT /api/v1.0.0/auth/language` - Cambiar idioma del usuario (requiere auth)
  - `DELETE /api/v1.0.0/auth/account` - Eliminar cuenta de usuario (requiere auth)
 
@@ -141,16 +91,22 @@ Las transacciones soportan periodicidad para gastos/ingresos recurrentes:
 La respuesta incluye `periodicityText` con el texto legible de la periodicidad.
 
 ### Categorías
-- `POST /api/v1.0.0/categories/categories` - Crear categoría (requiere auth)
-- `GET /api/v1.0.0/categories/categories` - Listar categorías (usuario + sistema) (requiere auth)
-- `PUT /api/v1.0.0/categories/categories/:_id` - Actualizar categoría de usuario (requiere auth)
-- `DELETE /api/v1.0.0/categories/categories/:_id` - Eliminar categoría de usuario (requiere auth)
+- `POST /api/v1.0.0/categories` - Crear categoría (requiere auth)
+- `GET /api/v1.0.0/categories` - Listar categorías (usuario + sistema) (requiere auth)
+- `PUT /api/v1.0.0/categories/:_id` - Actualizar categoría de usuario (requiere auth)
+- `DELETE /api/v1.0.0/categories/:_id` - Eliminar categoría de usuario (requiere auth)
 
 ### Notificaciones
 - `POST /api/v1.0.0/notifications/:userId` - Obtener notificaciones no leídas (requiere auth)
 - `PUT /api/v1.0.0/notifications/:userId/:_id` - Marcar notificación como leída (requiere auth)
 - `PUT /api/v1.0.0/notifications/:userId` - Marcar todas las notificaciones como leídas (requiere auth)
 - `DELETE /api/v1.0.0/notifications/:userId/:_id` - Eliminar notificación (requiere auth)
+
+### Stripe (Suscripciones)
+- `POST /api/v1.0.0/stripe/create-checkout-session` - Crear sesión de checkout (requiere auth)
+- `POST /api/v1.0.0/stripe/webhook` - Webhook de Stripe (sin auth, usa firma)
+- `POST /api/v1.0.0/stripe/customer-portal` - Portal de cliente Stripe (requiere auth)
+- `GET /api/v1.0.0/stripe/subscription-status/:userId` - Estado de suscripción (requiere auth)
 
 ### Métricas
 - `GET /api/v1.0.0/metrics` - Métricas del sistema (público)
@@ -178,6 +134,64 @@ La respuesta incluye `periodicityText` con el texto legible de la periodicidad.
 - **Notas**
   - En sandbox de SES, solo puedes enviar a/desde identidades verificadas.
   - Configura SPF/DKIM/DMARC en tu dominio para mejor entregabilidad.
+
+## 💳 Sistema de Suscripciones (Stripe)
+
+El sistema utiliza Stripe Checkout para gestionar suscripciones mensuales.
+
+### Período de Prueba Gratuito
+
+- **Todos los nuevos usuarios reciben automáticamente 7 días de prueba gratuita** al registrarse.
+- Durante el período de prueba, el usuario tiene acceso completo a todas las funciones.
+- El estado de suscripción será `trialing` durante este período.
+- Al finalizar el período de prueba, el usuario deberá completar el pago para continuar usando el servicio.
+
+### Política de Cuentas Inactivas
+
+El sistema ejecuta automáticamente un job de limpieza diario (3:00 AM) que elimina cuentas inactivas:
+
+- **Cuentas con suscripción cancelada/incompleta/impaga** por más de 30 días.
+- **Cuentas con período de prueba expirado** hace más de 30 días sin suscripción activa.
+- **Cuentas sin verificar email** por más de 30 días.
+
+> ⚠️ Los usuarios pueden reactivar su cuenta iniciando una nueva suscripción antes de que se cumpla el plazo de 30 días.
+
+### Flujo de Suscripción
+
+```
+┌─────────────┐     ┌─────────────────────┐     ┌─────────────────┐
+│  Usuario    │────▶│  POST /stripe/      │────▶│  Stripe         │
+│  registrado │     │  create-checkout-   │     │  Checkout       │
+│             │     │  session            │     │  (pago)         │
+└─────────────┘     └─────────────────────┘     └────────┬────────┘
+                                                         │
+                                                         ▼
+┌─────────────┐     ┌─────────────────────┐     ┌─────────────────┐
+│  Usuario    │◀────│  Actualizar estado  │◀────│  Webhook        │
+│  con        │     │  subscriptionStatus │     │  /stripe/       │
+│  suscripción│     │  en MongoDB         │     │  webhook        │
+└─────────────┘     └─────────────────────┘     └─────────────────┘
+```
+
+### Configuración en Stripe Dashboard
+
+1. Crear un **Producto** con un **Precio** recurrente mensual
+2. Copiar el `price_id` (ej: `price_1ABC...`) a `STRIPE_PRICE_ID`
+3. Configurar el webhook apuntando a `https://tu-dominio.com/api/v1.0.0/stripe/webhook`
+4. Seleccionar eventos: `checkout.session.completed`, `customer.subscription.*`, `invoice.payment_failed`
+5. Copiar el webhook secret a `STRIPE_WEBHOOK_SECRET`
+
+### Estados de Suscripción
+
+| Estado | Descripción |
+|--------|-------------|
+| `incomplete` | Pago pendiente |
+| `active` | Suscripción activa |
+| `past_due` | Pago atrasado |
+| `canceled` | Cancelada |
+| `unpaid` | Sin pagar |
+| `trialing` | En período de prueba |
+| `paused` | Pausada |
 
 ## 🔔 Sistema de Notificaciones
 
@@ -277,7 +291,8 @@ backend/
 │   │   ├── transactionController.ts
 │   │   ├── notificationsController.ts
 │   │   ├── metricsController.ts
-│   │   └── CategoriesController.ts
+│   │   ├── CategoriesController.ts
+│   │   └── stripeController.ts
 │   ├── interfaces/           # Interfaces TypeScript
 │   │   ├── auth.interfaces.ts
 │   │   ├── user.interfaces.ts
@@ -297,6 +312,7 @@ backend/
 │   │   ├── notificationsRoutes.ts
 │   │   ├── metricsRoutes.ts
 │   │   ├── categoriesRoutes.ts
+│   │   ├── stripeRoutes.ts
 │   │   └── index.ts
 │   ├── services/             # Lógica de negocio
 │   │   ├── notifications/    # Servicios de notificaciones
@@ -330,38 +346,37 @@ backend/
 - `npm start` - Ejecutar versión compilada
 - `npm test` - Ejecutar tests
 
-## 🎨 Tecnologías Utilizadas
-
-- Node.js 20.19.5
-- Express.js
-- TypeScript
-- MongoDB
-- Mongoose
-- RabbitMQ (amqplib)
-- Socket.io
-- JWT
-- bcryptjs
-- Zod
-- Nodemailer
-- AWS SES (@aws-sdk/client-sesv2)
-- SendGrid (@sendgrid/mail)
-- Google reCAPTCHA
-- CORS
-- Helmet
-- Morgan
-- Express Rate Limit
-- Swagger UI Express
-- Swagger JSDoc
-
 ## 🔒 Seguridad
 
-- Autenticación JWT con expiración configurable
-- Hash de contraseñas con bcrypt
-- Rate limiting para prevenir ataques
-- Validación estricta de datos con Zod
-- Headers de seguridad con Helmet
-- CORS configurado correctamente
-- Middleware de manejo de errores centralizado
+| Característica | Descripción |
+|----------------|-------------|
+| HTTP-only Cookies | Tokens JWT en cookies seguras (previene XSS) |
+| JWT | Autenticación con expiración configurable |
+| bcrypt | Hash de contraseñas |
+| Rate Limiting | Prevención de ataques de fuerza bruta |
+| Zod | Validación estricta de datos |
+| Helmet | Headers de seguridad HTTP |
+| CORS | Configurado con `credentials: true` |
+| Protección IDOR | Verificación de propiedad en recursos |
+
+### Integración Frontend (HTTP-only Cookies)
+
+```typescript
+// OBLIGATORIO: incluir credentials en todas las peticiones
+fetch('/api/v1.0.0/auth/login', {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data)
+});
+
+// Axios: configuración global
+axios.defaults.withCredentials = true;
+
+// Verificar sesión
+const user = await fetch('/api/v1.0.0/auth/me', { credentials: 'include' })
+  .then(res => res.ok ? res.json().then(d => d.data.user) : null);
+```
 
 ## 📈 Monitoreo
 
@@ -374,22 +389,11 @@ El endpoint `/api/v1.0.0/metrics` proporciona:
 
 ## 🚀 Despliegue
 
-### Desarrollo Local
-```bash
-npm run dev
-```
-
-### Producción
-```bash
-npm run build
-npm start
-```
-
-### Docker
-```bash
-docker build -t control-gastos-backend .
-docker run -p 5000:5000 control-gastos-backend
-```
+| Entorno | Comando |
+|---------|--------|
+| Desarrollo | `npm run dev` |
+| Producción | `npm run build && npm start` |
+| Docker | `docker build -t control-gastos-backend . && docker run -p 5000:5000 --env-file .env control-gastos-backend` |
 
 ## 🔧 Configuración de MongoDB
 
@@ -432,24 +436,11 @@ MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/control-gastos
 
 ## 📚 Documentación API (Swagger)
 
-La API cuenta con documentación interactiva generada con Swagger/OpenAPI 3.0.
+Documentación interactiva disponible en `http://localhost:5000{API_BASE_PATH}/api-docs`
 
-### Acceso
-- **URL**: `http://localhost:5000/api-docs`
-- **Formato**: OpenAPI 3.0
-
-### Características
-- Documentación completa de todos los endpoints
-- Esquemas de request/response
-- Autenticación JWT integrada (Bearer Token)
-- Ejemplos de uso para cada endpoint
-- Posibilidad de probar endpoints directamente desde la interfaz
-
-### Configuración
-Las rutas de documentación se configuran mediante variables de entorno:
-```env
-API_DOCS_PATH=/api-docs
-```
+- OpenAPI 3.0
+- Soporta autenticación por Cookie HTTP-only y Bearer Token
+- Prueba endpoints directamente desde la interfaz
 
 ## 📄 Licencia
 

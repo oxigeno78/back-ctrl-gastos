@@ -11,39 +11,58 @@ import sgMail from '@sendgrid/mail';
 import { authInterfaces} from '../interfaces';
 import { config } from '../config';
 
+// Opciones de cookie HTTP-only para el token de sesión
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: config.cookie.secure,
+  sameSite: config.cookie.sameSite,
+  maxAge: config.cookie.maxAge,
+  path: '/',
+  ...(config.cookie.domain && { domain: config.cookie.domain }),
+});
+
 // Esquemas de validación con Zod
 export const registerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(50, 'El nombre no puede exceder 50 caracteres'),
-  email: z.string().email('Email inválido'),
+  email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido'),
   language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres').optional()
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
+  email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(1, 'La contraseña es requerida'),
   recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido')
 });
 
-export const verifySchema = z.object({
-  token: z.string(),
-  email: z.string().email('Email inválido')
-});
+// NOTA: verifySchema no se usa - la validación se hace inline en verifyEmail
+// export const verifySchema = z.object({
+//   token: z.string(),
+//   email: z.string().email('Email inválido')
+// });
 
-export const resendSchema = z.object({
-  email: z.string().email('Email inválido')
+export const emailSchema = z.object({
+  email: z.string().email('Email inválido').transform(e => e.toLowerCase())
 });
 
 export const resetPasswordSchema = z.object({
   token: z.string(),
-  email: z.string().email('Email inválido'),
+  email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
 });
 
 export const changeLanguageSchema = z.object({
-  language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres'),
-  email: z.string().email('Email inválido')
+  language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres')
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'La contraseña actual es requerida'),
+  newPassword: z.string().min(6, 'La nueva contraseña debe tener al menos 6 caracteres')
+});
+
+export const recoveryPasswordSchema = z.object({
+  email: z.string().email('Email inválido').transform(e => e.toLowerCase())
 });
 
 const verifyRecaptcha = async (token: string): Promise<boolean> => {
@@ -181,10 +200,9 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
 // Reenviar verificación
 export const resendVerification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const bodySchema = z.object({ email: z.string().email('Email inválido') });
-    const { email } = bodySchema.parse(req.body);
+    const { email } = emailSchema.parse(req.body);
 
-    const user = await User.findOne({ email: email.toLowerCase() })
+    const user = await User.findOne({ email })
       .select('+emailVerificationToken +emailVerificationExpires');
 
     if (!user) {
@@ -256,8 +274,20 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    // Crear nuevo usuario
-    const user = new User({ name, email, password, isVerified: false, language });
+    // Calcular fecha de fin del período de prueba (7 días)
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    // Crear nuevo usuario con período de prueba
+    const user = new User({ 
+      name, 
+      email, 
+      password, 
+      isVerified: false, 
+      language,
+      subscriptionStatus: 'trialing',
+      subscriptionCurrentPeriodEnd: trialEndDate
+    });
 
     // Generar token de verificación
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -366,6 +396,9 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     user.lastLoginAt = new Date();
     await user.save();
 
+    // Establecer cookie HTTP-only con el token
+    res.cookie(config.cookie.name, token, getCookieOptions());
+
     res.json({
       success: true,
       message: 'Login exitoso',
@@ -375,7 +408,6 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
           name: user.name,
           email: user.email
         },
-        token,
         language: user.language
       }
     });
@@ -394,14 +426,25 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const logoutUser = resendSchema.parse(req.body);
-    const { email } = logoutUser;
-    const user = await User.findOne({ email }).select('+lastLogoutAt');
-    if (user) {
-      user.lastLogoutAt = new Date();
-      await user.save();
+    // Obtener email del body o del usuario autenticado
+    const email = req.body?.email || req.user?.email;
+    
+    if (email) {
+      const user = await User.findOne({ email }).select('+lastLogoutAt');
+      if (user) {
+        user.lastLogoutAt = new Date();
+        await user.save();
+      }
     }
-    // console.log('[authController | logout] user', user);
+
+    // Limpiar la cookie HTTP-only
+    res.clearCookie(config.cookie.name, {
+      httpOnly: true,
+      secure: config.cookie.secure,
+      sameSite: config.cookie.sameSite,
+      path: '/',
+      ...(config.cookie.domain && { domain: config.cookie.domain }),
+    });
 
     res.json({
       success: true,
@@ -412,11 +455,15 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
   }
 };
 
-// Middleware para verificar token
+// Middleware para verificar token (soporta HTTP-only cookie y header Authorization)
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    // Intentar obtener token de la cookie HTTP-only primero, luego del header
+    const cookieToken = req.cookies?.[config.cookie.name];
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const headerToken = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    
+    const token = cookieToken || headerToken;
 
     if (!token) {
       res.status(401).json({
@@ -458,9 +505,48 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
   }
 };
 
+// Obtener información del usuario autenticado (útil para verificar sesión con HTTP-only cookies)
+export const getCurrentUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado'
+      });
+      return;
+    }
+
+    const user = await User.findById(req.user.id).select('name email language subscriptionStatus subscriptionCurrentPeriodEnd');
+    
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: (user._id as any).toString(),
+          name: user.name,
+          email: user.email,
+          language: user.language,
+          subscriptionStatus: user.subscriptionStatus,
+          subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const recoveryUserPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { email } = req.body;
+    const { email } = recoveryPasswordSchema.parse(req.body);
     const user = await User.findOne({ email });
     if (!user) {
       console.log('[AUTH | recoveryUserPassword] Usuario no encontrado');
@@ -492,6 +578,14 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
       message: 'Correo de restablecimiento de contraseña enviado'
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: error.errors
+      });
+      return;
+    }
     next(error);
   }
 };
@@ -539,8 +633,19 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
 
 export const changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email }).select('+password');
+    // Validar datos de entrada
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+    
+    // Usar el usuario autenticado (no permitir cambiar contraseña de otro usuario)
+    if (!req.user?.id) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado'
+      });
+      return;
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
     if (!user) {
       res.status(404).json({
         success: false,
@@ -548,21 +653,51 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
       });
       return;
     }
-    user.password = password;
+
+    // Verificar contraseña actual
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      res.status(401).json({
+        success: false,
+        message: 'La contraseña actual es incorrecta'
+      });
+      return;
+    }
+
+    user.password = newPassword;
     await user.save();
+
     res.json({
       success: true,
       message: 'Contraseña cambiada exitosamente'
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: error.errors
+      });
+      return;
+    }
     next(error);
   }
 };
 
 export const changeLanguage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { language, email } = changeLanguageSchema.parse(req.body);
-    const user = await User.findOne({ email }).select('+password');
+    const { language } = changeLanguageSchema.parse(req.body);
+    
+    // Usar el usuario autenticado
+    if (!req.user?.id) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado'
+      });
+      return;
+    }
+
+    const user = await User.findById(req.user.id);
     if (!user) {
       res.status(404).json({
         success: false,
@@ -570,13 +705,23 @@ export const changeLanguage = async (req: Request, res: Response, next: NextFunc
       });
       return;
     }
+
     user.language = language;
     await user.save();
+
     res.json({
       success: true,
       message: 'Idioma cambiado exitosamente'
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: error.errors
+      });
+      return;
+    }
     next(error);
   }
 };
@@ -609,6 +754,15 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
       });
       return;
     }
+
+    // Limpiar la cookie de sesión
+    res.clearCookie(config.cookie.name, {
+      httpOnly: true,
+      secure: config.cookie.secure,
+      sameSite: config.cookie.sameSite,
+      path: '/',
+      ...(config.cookie.domain && { domain: config.cookie.domain }),
+    });
 
     res.json({
       success: true,

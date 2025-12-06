@@ -30,6 +30,7 @@ export const config = {
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   apiUrlBase: process.env.API_URL_BASE || 'http://localhost',
   apiBasePath: process.env.API_BASE_PATH || '/api/v1.0.0',
+  apiHostName: process.env.API_HOST_NAME || 'localhost',
 
   // Notificaciones en tiempo real
   realtime: {
@@ -56,6 +57,23 @@ export const config = {
   aws: {
     region: process.env.AWS_REGION || 'us-east-1',
   },
+
+  // Stripe
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    priceId: process.env.STRIPE_PRICE_ID || '', // ID del precio de suscripción mensual
+  },
+
+  // Cookies
+  cookie: {
+    secret: process.env.COOKIE_SECRET || process.env.JWT_SECRET || '',
+    name: process.env.COOKIE_NAME || 'auth_token',
+    maxAge: parseInt(process.env.COOKIE_MAX_AGE || '604800000', 10), // 7 días en ms
+    secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+    sameSite: (process.env.COOKIE_SAME_SITE || 'strict') as 'strict' | 'lax' | 'none',
+    domain: process.env.COOKIE_DOMAIN || undefined,
+  },
 } as const;
 
 /**
@@ -78,6 +96,11 @@ export function validateEnv(): void {
   // Validar RabbitMQ solo si las notificaciones están habilitadas
   if (config.realtime.enabled && !config.realtime.rabbitmqUrl) {
     throw new Error('❌ RABBITMQ_URL es requerido cuando ENABLE_REALTIME_NOTIFICATIONS=true');
+  }
+
+  // Validar Stripe
+  if (!config.stripe.secretKey) {
+    console.warn('⚠️ STRIPE_SECRET_KEY no está configurado. Las suscripciones no funcionarán.');
   }
 }
 
