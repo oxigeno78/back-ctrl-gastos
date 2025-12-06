@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import NotificationConsumer from '../consumers/notification.consumer';
 import { authInterfaces } from '../../interfaces';
 import { config } from '../../config';
+import { logger } from '../../utils';
 
 const connectedUsers = new Map<string, string>();
 let notificationConsumer: NotificationConsumer;
@@ -21,7 +22,7 @@ export async function initWebSocketServer(httpServer: any) {
     const token = socket.handshake.auth.token;
     try {
       const decoded = jwt.verify(token, config.jwt.secret) as authInterfaces.JWTPayload;
-      // console.log('[socket.server|initWebSocketServer - io.use] decoded', decoded);
+      logger.info('[initWebSocketServer - io.use] decoded', decoded);
       socket.data.userId = decoded.userId;
       next();
     } catch {
@@ -32,9 +33,9 @@ export async function initWebSocketServer(httpServer: any) {
   io.on('connection', async (socket) => {
     const userId = socket.data.userId;
     connectedUsers.set(userId, socket.id);
-    
-    // console.log('[socket.server|initWebSocketServer - io.on] socket.id', socket.id);
-    // console.log('[socket.server|initWebSocketServer - io.on] connectedUsers', connectedUsers);
+
+    logger.info('[initWebSocketServer - io.on] socket.id', socket.id);
+    logger.info('[initWebSocketServer - io.on] connectedUsers', connectedUsers);
     
     // Suscribir al usuario a su cola de notificaciones
     await notificationConsumer.subscribeUser(userId);
@@ -42,6 +43,8 @@ export async function initWebSocketServer(httpServer: any) {
     socket.on('disconnect', async () => {
       connectedUsers.delete(userId);
       await notificationConsumer.unsubscribeUser(userId);
+      logger.info('[initWebSocketServer - io.on] socket.id', socket.id);
+      logger.info('[initWebSocketServer - io.on] connectedUsers', connectedUsers);
     });
   });
 

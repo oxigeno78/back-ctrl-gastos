@@ -98,9 +98,13 @@ export function validateEnv(): void {
     throw new Error('❌ RABBITMQ_URL es requerido cuando ENABLE_REALTIME_NOTIFICATIONS=true');
   }
 
-  // Validar Stripe
+  // Validar Stripe (usar console.warn aquí porque logger aún no está disponible)
   if (!config.stripe.secretKey) {
-    console.warn('⚠️ STRIPE_SECRET_KEY no está configurado. Las suscripciones no funcionarán.');
+    const now = new Date();
+    const offset = -now.getTimezoneOffset() / 60;
+    const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} UTC${offset >= 0 ? '+' : ''}${offset}`;
+    const fileName = 'env.config.ts'.padEnd(20);
+    console.warn(`\x1b[90m[ ${ts} | \x1b[35m${fileName}\x1b[90m ]\x1b[0m \x1b[33m\x1b[1mWARN   \x1b[0m\x1b[33m: ⚠️ STRIPE_SECRET_KEY no está configurado. Las suscripciones no funcionarán.\x1b[0m`);
   }
 }
 

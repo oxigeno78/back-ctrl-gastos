@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { Request, Response, NextFunction } from 'express';
 import { Notification } from '../models/Notification';
 import { z } from 'zod';
+import { logger } from '../utils/logger';
 
 const getUnReadNotificationByUserIdSchema = z.object({
     userId: z.string().min(1, 'El ID es requerido')
@@ -39,7 +40,7 @@ export const getUnReadNotificationByUserId = async (req: Request, res: Response,
 export const setNotificationAsReaded = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { _id, userId } = getNotificationByIdSchema.parse(req.params);
-        console.log('[' + new Date().toISOString() + '] ' + 'setNotificationAsReaded: ' + _id);
+        logger.debug('setNotificationAsReaded:', _id);
         const notification = await Notification.findOneAndUpdate(
             { _id, deleted: false },
             { read: true },

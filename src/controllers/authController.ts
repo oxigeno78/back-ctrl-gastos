@@ -10,6 +10,7 @@ import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import sgMail from '@sendgrid/mail';
 import { authInterfaces} from '../interfaces';
 import { config } from '../config';
+import { logger } from '../utils/logger';
 
 // Opciones de cookie HTTP-only para el token de sesión
 const getCookieOptions = () => ({
@@ -223,7 +224,7 @@ export const resendVerification = async (req: Request, res: Response, next: Next
 
     const verifyLink = `${config.apiUrlBase}${config.apiBasePath}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
-    console.log('reenviando Link de verificación:', verifyLink);
+    logger.debug('Reenviando link de verificación:', verifyLink);
 
     try {
       const transporter = await createMailTransport();
@@ -310,7 +311,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         html: `<p>Hola ${user.name}, confirma tu correo haciendo clic aquí: <a href="${verifyLink}">Confirmar</a></p>`
       });
     } catch (mailErr) {
-      console.error('Error enviando email de verificación:', mailErr);
+      logger.error('Error enviando email de verificación:', mailErr);
     }
 
     res.status(201).json({
@@ -347,7 +348,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
     const recaptchaValid = await verifyRecaptcha(recaptchaToken);
     if (!recaptchaValid) {
-      console.log('[authController | login] Falló la validación de reCAPTCHA');
+      logger.warn('Falló la validación de reCAPTCHA');
       res.status(400).json({
         success: false,
         message: 'Falló la validación de reCAPTCHA'
@@ -358,7 +359,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // Buscar usuario por email
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      console.log('[authController | login] Usuario no encontrado');
+      logger.debug('Login fallido: usuario no encontrado');
       res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
@@ -369,7 +370,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // Verificar contraseña
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      console.log('[authController | login] Credenciales inválidas');
+      logger.debug('Login fallido: credenciales inválidas');
       res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
@@ -379,7 +380,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
     // Bloquear si no está verificado
     if (!user.isVerified) {
-      console.log('[authController | login] Cuenta no verificada');
+      logger.debug('Login fallido: cuenta no verificada');
       res.status(403).json({
         success: false,
         message: 'Tu cuenta no está verificada. Revisa tu correo o solicita reenvío de verificación.'
@@ -549,7 +550,7 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
     const { email } = recoveryPasswordSchema.parse(req.body);
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('[AUTH | recoveryUserPassword] Usuario no encontrado');
+      logger.debug('Recuperación de contraseña: usuario no encontrado');
       res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
@@ -571,7 +572,7 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
         html: `<p>Hola ${user.name}, restablece tu contraseña haciendo clic aquí: <a href="${resetLink}">Restablecer</a></p>`
       });
     } catch (mailErr) {
-      console.error('[AUTH | recoveryUserPassword] Error enviando email de restablecimiento de contraseña:', mailErr);
+      logger.error('Error enviando email de restablecimiento de contraseña:', mailErr);
     }
     res.json({
       success: true,
@@ -625,8 +626,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
       message: 'Contraseña restablecida exitosamente'
     });
   } catch (error) {
-    console.log('[AUTH | resetPassword] error: ', error);
-    console.log('[AUTH | resetPassword] body: ', req.body);
+    logger.error('Error en resetPassword:', error);
     next(error);
   }
 };
@@ -741,7 +741,7 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
 
     // Eliminar todas las transacciones asociadas al usuario
     await Transaction.deleteMany({ userId }).catch((error) => {
-      console.error('[AUTH | deleteAccount] Error eliminando transacciones:\n', userId, '\n', error);
+      logger.error('Error eliminando transacciones del usuario:', userId, error);
     });
 
     // Eliminar el usuario

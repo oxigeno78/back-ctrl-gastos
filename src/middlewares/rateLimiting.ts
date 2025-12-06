@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
+import { logger } from '../utils/logger';
 
 // Rate limiting para autenticación
 export const authRateLimit = rateLimit({
@@ -25,23 +26,30 @@ export const apiRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-// Middleware de logging
+// Middleware de logging (reemplaza a Morgan)
 export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const logData = {
-      method: req.method,
-      url: req.url,
-      status: res.statusCode,
-      duration: `${duration}ms`,
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      timestamp: new Date().toISOString()
-    };
+    const contentLength = res.get('Content-Length') || '-';
+    const ip = req.ip || req.socket.remoteAddress || '-';
+    const userAgent = req.get('User-Agent') || '-';
+    const referrer = req.get('Referrer') || req.get('Referer') || '-';
+    const httpVersion = `HTTP/${req.httpVersion}`;
     
-    console.log(`[${logData.timestamp}] ${logData.method} ${logData.url} - ${logData.status} (${logData.duration})`);
+    // Formato similar a Morgan 'combined':
+    // :remote-addr - :remote-user [:date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"
+    const logLine = `${ip} - "${req.method} ${req.originalUrl} ${httpVersion}" ${res.statusCode} ${contentLength} "${referrer}" "${userAgent}" (${duration}ms)`;
+    
+    // Usar nivel según status code
+    if (res.statusCode >= 500) {
+      logger.error(logLine);
+    } else if (res.statusCode >= 400) {
+      logger.warn(logLine);
+    } else {
+      logger.debug(logLine);
+    }
   });
   
   next();

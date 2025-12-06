@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { User } from '../models/User';
+import { logger } from '../utils/logger';
 
 /**
  * Job de limpieza de cuentas inactivas
@@ -17,7 +18,7 @@ const DAYS_BEFORE_CLEANUP = 30;
 export const startCleanupJob = (): cron.ScheduledTask => {
   // Ejecutar diariamente a las 3:00 AM
   const task = cron.schedule('0 3 * * *', async () => {
-    console.log('[CleanupJob] Iniciando limpieza de cuentas inactivas...');
+    logger.info('Iniciando limpieza de cuentas inactivas...');
     
     try {
       const cutoffDate = new Date();
@@ -43,16 +44,16 @@ export const startCleanupJob = (): cron.ScheduledTask => {
         ]
       });
 
-      console.log(`[CleanupJob] Se eliminaron ${result.deletedCount} cuentas inactivas`);
+      logger.info(`Se eliminaron ${result.deletedCount} cuentas inactivas`);
     } catch (error) {
-      console.error('[CleanupJob] Error al limpiar cuentas inactivas:', error);
+      logger.error('Error al limpiar cuentas inactivas:', error);
     }
   }, {
     scheduled: true,
     timezone: 'America/Mexico_City'
   });
 
-  console.log('[CleanupJob] Job de limpieza programado (diario a las 3:00 AM)');
+  logger.info('Job de limpieza programado (diario a las 3:00 AM)');
   
   return task;
 };
@@ -61,7 +62,7 @@ export const startCleanupJob = (): cron.ScheduledTask => {
  * Ejecuta la limpieza manualmente (útil para testing o ejecución manual)
  */
 export const runCleanupNow = async (): Promise<{ deletedCount: number }> => {
-  console.log('[CleanupJob] Ejecutando limpieza manual...');
+  logger.info('Ejecutando limpieza manual...');
   
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - DAYS_BEFORE_CLEANUP);
@@ -83,7 +84,7 @@ export const runCleanupNow = async (): Promise<{ deletedCount: number }> => {
     ]
   });
 
-  console.log(`[CleanupJob] Limpieza manual completada: ${result.deletedCount} cuentas eliminadas`);
+  logger.info(`Limpieza manual completada: ${result.deletedCount} cuentas eliminadas`);
   
   return { deletedCount: result.deletedCount };
 };

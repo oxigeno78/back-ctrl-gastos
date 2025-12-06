@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Types } from 'mongoose';
 import { periodicity } from '../interfaces/transaction.interfaces';
 import { notificationService } from '../services/notifications/notification.service';
+import { logger } from '../utils/logger';
 
 // Helper para verificar si un string es un ObjectId válido
 const isValidObjectId = (str: string): boolean => Types.ObjectId.isValid(str) && new Types.ObjectId(str).toString() === str;
@@ -211,9 +212,10 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
   try {
     const validatedQuery = getTransactionsSchema.parse(req.query);
     const { page, limit, type, category, startDate, endDate } = validatedQuery;
+    const userId: Types.ObjectId = new Types.ObjectId(req.user!.id);
 
     // Construir filtros
-    const filters: any = { userId: req.user!.id as any, deleted: false };
+    const filters: any = { userId, deleted: false };
     
     if (type) filters.type = type;
     if (category) filters.category = new RegExp(category, 'i');
