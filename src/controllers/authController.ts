@@ -256,8 +256,20 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    // Crear nuevo usuario
-    const user = new User({ name, email, password, isVerified: false, language });
+    // Calcular fecha de fin del período de prueba (7 días)
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    // Crear nuevo usuario con período de prueba
+    const user = new User({ 
+      name, 
+      email, 
+      password, 
+      isVerified: false, 
+      language,
+      subscriptionStatus: 'trialing',
+      subscriptionCurrentPeriodEnd: trialEndDate
+    });
 
     // Generar token de verificación
     const rawToken = crypto.randomBytes(32).toString('hex');

@@ -56,6 +56,13 @@ export const config = {
   aws: {
     region: process.env.AWS_REGION || 'us-east-1',
   },
+
+  // Stripe
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    priceId: process.env.STRIPE_PRICE_ID || '', // ID del precio de suscripción mensual
+  },
 } as const;
 
 /**
@@ -78,6 +85,11 @@ export function validateEnv(): void {
   // Validar RabbitMQ solo si las notificaciones están habilitadas
   if (config.realtime.enabled && !config.realtime.rabbitmqUrl) {
     throw new Error('❌ RABBITMQ_URL es requerido cuando ENABLE_REALTIME_NOTIFICATIONS=true');
+  }
+
+  // Validar Stripe
+  if (!config.stripe.secretKey) {
+    console.warn('⚠️ STRIPE_SECRET_KEY no está configurado. Las suscripciones no funcionarán.');
   }
 }
 

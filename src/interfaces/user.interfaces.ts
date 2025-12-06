@@ -1,5 +1,7 @@
 import type { Document } from 'mongoose';
 
+export type SubscriptionStatus = 'incomplete' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'trialing' | 'paused';
+
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -14,5 +16,10 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   language?: string;
+  // Stripe subscription fields
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  subscriptionStatus?: SubscriptionStatus | null;
+  subscriptionCurrentPeriodEnd?: Date | null;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }

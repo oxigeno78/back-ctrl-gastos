@@ -60,6 +60,25 @@ const userSchema = new Schema<userInterfaces.IUser>({
   language: {
     type: String,
     default: 'esp'
+  },
+  // Stripe subscription fields
+  stripeCustomerId: {
+    type: String,
+    default: null,
+    sparse: true
+  },
+  stripeSubscriptionId: {
+    type: String,
+    default: null
+  },
+  subscriptionStatus: {
+    type: String,
+    enum: ['incomplete', 'active', 'past_due', 'canceled', 'unpaid', 'trialing', 'paused'],
+    default: null
+  },
+  subscriptionCurrentPeriodEnd: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true,
