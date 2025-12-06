@@ -32,11 +32,17 @@ const options: swaggerJSDoc.Options = {
     ],
     components: {
       securitySchemes: {
+        CookieAuth: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: 'auth_token',
+          description: 'Cookie HTTP-only con token JWT (se envía automáticamente con credentials: include)',
+        },
         BearerAuth: {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Token JWT obtenido en el login',
+          description: 'Token JWT en header Authorization (alternativa a cookie)',
         },
       },
       schemas: {
@@ -109,10 +115,9 @@ const options: swaggerJSDoc.Options = {
         },
         CategoryInput: {
           type: 'object',
-          required: ['name', 'type', 'transactionType', 'description', 'color'],
+          required: ['name', 'transactionType', 'description', 'color'],
           properties: {
             name: { type: 'string', maxLength: 50, example: 'Entretenimiento' },
-            type: { type: 'string', enum: ['income', 'expense'], example: 'expense' },
             transactionType: { type: 'string', enum: ['income', 'expense'], example: 'expense', description: 'Tipo de transacción asociada a la categoría' },
             description: { type: 'string', maxLength: 200, example: 'Gastos de ocio y diversión' },
             color: { type: 'string', maxLength: 7, example: '#3498DB' },
@@ -268,7 +273,7 @@ const options: swaggerJSDoc.Options = {
         post: {
           tags: ['Auth'],
           summary: 'Iniciar sesión',
-          description: 'Autentica un usuario y devuelve un token JWT',
+          description: 'Autentica un usuario. El token JWT se envía en una cookie HTTP-only (auth_token). El frontend debe usar credentials: include en todas las peticiones.',
           security: [],
           requestBody: {
             required: true,
@@ -288,7 +293,13 @@ const options: swaggerJSDoc.Options = {
           },
           responses: {
             200: {
-              description: 'Login exitoso',
+              description: 'Login exitoso. Token enviado en cookie HTTP-only.',
+              headers: {
+                'Set-Cookie': {
+                  description: 'Cookie HTTP-only con el token JWT',
+                  schema: { type: 'string', example: 'auth_token=eyJhbGc...; HttpOnly; Secure; SameSite=Strict; Path=/' },
+                },
+              },
               content: {
                 'application/json': {
                   schema: {
@@ -300,7 +311,7 @@ const options: swaggerJSDoc.Options = {
                         type: 'object',
                         properties: {
                           user: { $ref: '#/components/schemas/User' },
-                          token: { type: 'string', description: 'Token JWT' },
+                          language: { type: 'string', example: 'esp' },
                         },
                       },
                     },
@@ -318,31 +329,66 @@ const options: swaggerJSDoc.Options = {
         post: {
           tags: ['Auth'],
           summary: 'Cerrar sesión',
-          description: 'Registra el cierre de sesión del usuario',
-          security: [],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['email'],
-                  properties: {
-                    email: { type: 'string', format: 'email', example: 'juan@ejemplo.com' },
-                  },
-                },
-              },
-            },
-          },
+          description: 'Cierra la sesión del usuario y limpia la cookie HTTP-only. Requiere autenticación.',
+          security: [{ CookieAuth: [] }, { BearerAuth: [] }],
           responses: {
             200: {
-              description: 'Logout exitoso',
+              description: 'Logout exitoso. Cookie eliminada.',
+              headers: {
+                'Set-Cookie': {
+                  description: 'Cookie eliminada',
+                  schema: { type: 'string', example: 'auth_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0' },
+                },
+              },
               content: {
                 'application/json': {
                   schema: { $ref: '#/components/schemas/SuccessResponse' },
                 },
               },
             },
+            401: { description: 'No autenticado' },
+          },
+        },
+      },
+      // Auth - Get Current User (verificar sesión)
+      '/auth/me': {
+        get: {
+          tags: ['Auth'],
+          summary: 'Obtener usuario actual',
+          description: 'Obtiene la información del usuario autenticado. Útil para verificar si la sesión es válida con HTTP-only cookies.',
+          security: [{ CookieAuth: [] }, { BearerAuth: [] }],
+          responses: {
+            200: {
+              description: 'Usuario autenticado',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: {
+                        type: 'object',
+                        properties: {
+                          user: {
+                            type: 'object',
+                            properties: {
+                              id: { type: 'string', example: '507f1f77bcf86cd799439011' },
+                              name: { type: 'string', example: 'Juan Pérez' },
+                              email: { type: 'string', example: 'juan@ejemplo.com' },
+                              language: { type: 'string', example: 'esp' },
+                              subscriptionStatus: { type: 'string', example: 'trialing' },
+                              subscriptionCurrentPeriodEnd: { type: 'string', format: 'date-time' },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: 'No autenticado' },
+            404: { description: 'Usuario no encontrado' },
           },
         },
       },
@@ -454,18 +500,18 @@ const options: swaggerJSDoc.Options = {
         post: {
           tags: ['Auth'],
           summary: 'Cambiar contraseña',
-          description: 'Cambia la contraseña del usuario autenticado',
-          security: [{ BearerAuth: [] }],
+          description: 'Cambia la contraseña del usuario autenticado. Requiere la contraseña actual para verificación.',
+          security: [{ CookieAuth: [] }, { BearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['email', 'password'],
+                  required: ['currentPassword', 'newPassword'],
                   properties: {
-                    email: { type: 'string', format: 'email', example: 'juan@ejemplo.com' },
-                    password: { type: 'string', minLength: 6, example: 'nuevaContraseña123' },
+                    currentPassword: { type: 'string', minLength: 1, example: 'contraseñaActual123', description: 'Contraseña actual del usuario' },
+                    newPassword: { type: 'string', minLength: 6, example: 'nuevaContraseña123', description: 'Nueva contraseña (mínimo 6 caracteres)' },
                   },
                 },
               },
@@ -473,7 +519,7 @@ const options: swaggerJSDoc.Options = {
           },
           responses: {
             200: { description: 'Contraseña cambiada exitosamente' },
-            401: { description: 'No autenticado' },
+            401: { description: 'No autenticado o contraseña actual incorrecta' },
             404: { description: 'Usuario no encontrado' },
           },
         },
@@ -483,17 +529,16 @@ const options: swaggerJSDoc.Options = {
         put: {
           tags: ['Auth'],
           summary: 'Cambiar idioma',
-          description: 'Cambia el idioma preferido del usuario',
-          security: [{ BearerAuth: [] }],
+          description: 'Cambia el idioma preferido del usuario autenticado',
+          security: [{ CookieAuth: [] }, { BearerAuth: [] }],
           requestBody: {
             required: true,
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['email', 'language'],
+                  required: ['language'],
                   properties: {
-                    email: { type: 'string', format: 'email', example: 'juan@ejemplo.com' },
                     language: { type: 'string', minLength: 3, maxLength: 3, example: 'esp', description: 'Código de idioma (3 caracteres)' },
                   },
                 },
@@ -512,8 +557,8 @@ const options: swaggerJSDoc.Options = {
         delete: {
           tags: ['Auth'],
           summary: 'Eliminar cuenta',
-          description: 'Elimina la cuenta del usuario y todas sus transacciones asociadas',
-          security: [{ BearerAuth: [] }],
+          description: 'Elimina la cuenta del usuario y todas sus transacciones asociadas. También limpia la cookie de sesión.',
+          security: [{ CookieAuth: [] }, { BearerAuth: [] }],
           responses: {
             200: { description: 'Cuenta eliminada correctamente' },
             401: { description: 'No autenticado' },
@@ -1124,7 +1169,7 @@ const options: swaggerJSDoc.Options = {
         },
       },
     },
-    security: [{ BearerAuth: [] }],
+    security: [{ CookieAuth: [] }, { BearerAuth: [] }],
   },
   apis: [],
 };

@@ -118,7 +118,12 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
 // Obtener transacción por ID
 export const getTransactionById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const transaction = await Transaction.findOne({ _id: req.params._id, deleted: false }).lean();
+    // Verificar que la transacción pertenezca al usuario autenticado
+    const transaction = await Transaction.findOne({ 
+      _id: req.params._id, 
+      userId: req.user!.id,
+      deleted: false 
+    }).lean();
     if (!transaction || transaction.deleted) {
       res.status(404).json({
         success: false,
@@ -144,8 +149,9 @@ export const updateTransaction = async (req: Request, res: Response, next: NextF
   try {
     const validatedData = updateTransactionSchema.parse(req.body);
     const { type, amount, category, description, date, periodicity = 0, every } = validatedData;
+    // Verificar que la transacción pertenezca al usuario autenticado
     const transaction = await Transaction.findOneAndUpdate(
-      { _id: req.params._id, deleted: false },
+      { _id: req.params._id, userId: req.user!.id, deleted: false },
       { type, amount, category, description, date: date ? new Date(date) : new Date(), periodicity, every: periodicity <= 1 ? null : every },
       { new: true }
     );
@@ -178,8 +184,9 @@ export const updateTransaction = async (req: Request, res: Response, next: NextF
 export const deleteTransaction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { _id } = getTransactionByIdSchema.parse(req.params);
+    // Verificar que la transacción pertenezca al usuario autenticado
     const transaction = await Transaction.findOneAndUpdate(
-      { _id, deleted: false },
+      { _id, userId: req.user!.id, deleted: false },
       { deleted: true },
       { new: true }
     );

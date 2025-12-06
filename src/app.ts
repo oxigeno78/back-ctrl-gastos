@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 import path from 'path';
 import favicon from 'serve-favicon';
@@ -47,6 +48,9 @@ app.use(cors({
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400 // 24 horas
 }));
+
+// Cookie parser (antes de las rutas)
+app.use(cookieParser(config.cookie.secret));
 
 // Middlewares de logging y rate limiting
 app.use(morgan('combined'));
