@@ -68,6 +68,11 @@ const getTransactionByIdSchema = z.object({
   _id: z.string().min(1, 'El ID es requerido')
 });
 
+const getMonthlyStatsSchema = z.object({
+  startDate: dateStringSchema,
+  endDate: dateStringSchema
+});
+
 const updateTransactionSchema = z.object({
   type: z.enum(['income', 'expense']).optional(),
   amount: z.number().positive('El monto debe ser mayor a 0').optional(),
@@ -302,18 +307,8 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
 // Obtener estadísticas mensuales
 export const getMonthlyStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { year, month } = req.query;
-    
-    if (!year || !month) {
-      res.status(400).json({
-        success: false,
-        message: 'Año y mes son requeridos'
-      });
-      return;
-    }
-
-    const startDate = new Date(parseInt(year as string), parseInt(month as string) - 1, 1);
-    const endDate = new Date(parseInt(year as string), parseInt(month as string), 0, 23, 59, 59);
+    const validatedQuery = getMonthlyStatsSchema.parse(req.query);
+    const { startDate, endDate } = validatedQuery;
 
     const stats = await Transaction.aggregate([
       {
@@ -370,8 +365,8 @@ export const getMonthlyStats = async (req: Request, res: Response, next: NextFun
     res.json({
       success: true,
       data: {
-        month: parseInt(month as string),
-        year: parseInt(year as string),
+        startDate,
+        endDate,
         stats: resolvedStats
       }
     });

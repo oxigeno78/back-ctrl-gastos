@@ -68,7 +68,7 @@ npm run dev
  - `GET /api/v1.0.0/transactions/:_id` - Obtener detalle de una transacción (requiere auth)
  - `PUT /api/v1.0.0/transactions/:_id` - Actualizar una transacción (requiere auth)
  - `DELETE /api/v1.0.0/transactions/:_id` - Eliminar una transacción (requiere auth)
- - `GET /api/v1.0.0/transactions/stats/monthly` - Estadísticas mensuales (requiere auth)
+ - `GET /api/v1.0.0/transactions/stats/monthly` - Estadísticas por rango de fechas (requiere auth, params: `startDate`, `endDate`)
 
 #### Periodicidad de Transacciones
 
