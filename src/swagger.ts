@@ -733,16 +733,16 @@ const options: swaggerJSDoc.Options = {
       '/transactions/stats/monthly': {
         get: {
           tags: ['Transactions'],
-          summary: 'Estadísticas mensuales',
-          description: 'Obtiene estadísticas de transacciones agrupadas por categoría para un mes específico',
+          summary: 'Estadísticas por rango de fechas',
+          description: 'Obtiene estadísticas de transacciones agrupadas por categoría para un rango de fechas',
           security: [{ BearerAuth: [] }],
           parameters: [
-            { name: 'year', in: 'query', required: true, schema: { type: 'integer' }, description: 'Año', example: 2024 },
-            { name: 'month', in: 'query', required: true, schema: { type: 'integer', minimum: 1, maximum: 12 }, description: 'Mes (1-12)', example: 11 },
+            { name: 'startDate', in: 'query', required: true, schema: { type: 'string', format: 'date-time' }, description: 'Fecha inicial del rango', example: '2024-11-01T00:00:00.000Z' },
+            { name: 'endDate', in: 'query', required: true, schema: { type: 'string', format: 'date-time' }, description: 'Fecha final del rango', example: '2024-11-30T23:59:59.999Z' },
           ],
           responses: {
             200: {
-              description: 'Estadísticas mensuales',
+              description: 'Estadísticas del rango de fechas',
               content: {
                 'application/json': {
                   schema: {
@@ -752,8 +752,8 @@ const options: swaggerJSDoc.Options = {
                       data: {
                         type: 'object',
                         properties: {
-                          month: { type: 'integer' },
-                          year: { type: 'integer' },
+                          startDate: { type: 'string', format: 'date-time' },
+                          endDate: { type: 'string', format: 'date-time' },
                           stats: { type: 'array', items: { type: 'object' } },
                         },
                       },
@@ -762,7 +762,7 @@ const options: swaggerJSDoc.Options = {
                 },
               },
             },
-            400: { description: 'Año y mes son requeridos' },
+            400: { description: 'startDate y endDate son requeridos' },
             401: { description: 'No autenticado' },
           },
         },
