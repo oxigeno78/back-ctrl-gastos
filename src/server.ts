@@ -21,15 +21,25 @@ const startServer = async () => {
     }
     
     httpServer.listen(config.port, () => {
-      logger.info(config.nodeEnv);
-      logger.info(`🚀 Servidor ejecutándose en puerto ${config.port}`);
-      if (config.realtime.enabled) {
-        logger.info(`🔌 WebSocket disponible en ws://${config.apiHostName}:${config.port}/socket.io/`);
+      if (config.nodeEnv === 'development') {
+        logger.info(`🚀 Servidor ejecutándose en puerto ${config.port}`);
+        if (config.realtime.enabled) {
+          logger.info(`🔌 WebSocket disponible en ws://${config.apiHostName}:${config.port}/socket.io/`);
+        } else {
+          logger.info(`ℹ️ Notificaciones en tiempo real deshabilitadas`);
+        }
+        logger.info(`📊 Métricas disponibles en ${config.apiUrlBase}:${config.port}${config.apiBasePath}/metrics`);
+        logger.info(`🔍 Health check en ${config.apiUrlBase}:${config.port}${config.apiBasePath}/health`);
       } else {
-        logger.info(`ℹ️ Notificaciones en tiempo real deshabilitadas`);
+        logger.info(`🚀 Servidor ejecutándose en puerto ${config.port}`);
+        if (config.realtime.enabled) {
+          logger.info(`🔌 WebSocket disponible en ws://${config.apiHostName}/socket.io/`);
+        } else {
+          logger.info(`ℹ️ Notificaciones en tiempo real deshabilitadas`);
+        }
+        logger.info(`📊 Métricas disponibles en ${config.apiUrlBase}${config.apiBasePath}/metrics`);
+        logger.info(`🔍 Health check en ${config.apiUrlBase}${config.apiBasePath}/health`);
       }
-      logger.info(`📊 Métricas disponibles en ${config.apiUrlBase}:${config.port}${config.apiBasePath}/metrics`);
-      logger.info(`🔍 Health check en ${config.apiUrlBase}:${config.port}${config.apiBasePath}/health`);
     });
   } catch (error) {
     logger.error('Error iniciando servidor:', error);
