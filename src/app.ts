@@ -28,7 +28,7 @@ const allowedOrigins = [
   config.frontendUrl
 ].filter(Boolean); // Eliminar valores undefined
 
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 app.use(cors({
   origin: (origin, callback) => {
