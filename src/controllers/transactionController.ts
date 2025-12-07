@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Types } from 'mongoose';
 import { periodicity } from '../interfaces/transaction.interfaces';
 import { notificationService } from '../services/notifications/notification.service';
+import { logger } from '../utils/logger';
 
 // Helper para verificar si un string es un ObjectId válido
 const isValidObjectId = (str: string): boolean => Types.ObjectId.isValid(str) && new Types.ObjectId(str).toString() === str;
@@ -48,13 +49,19 @@ const createTransactionSchema = z.object({
   every: z.string().optional(),
 });
 
+// Helper para validar y parsear fechas flexibles
+const dateStringSchema = z.string().refine(
+  (val) => !isNaN(Date.parse(val)),
+  { message: 'Fecha inválida' }
+).transform((val) => new Date(val));
+
 const getTransactionsSchema = z.object({
   page: z.string().optional().transform(val => val ? parseInt(val) : 1),
   limit: z.string().optional().transform(val => val ? parseInt(val) : 10),
   type: z.enum(['income', 'expense']).optional(),
   category: z.string().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional()
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional()
 });
 
 const getTransactionByIdSchema = z.object({
@@ -211,16 +218,17 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
   try {
     const validatedQuery = getTransactionsSchema.parse(req.query);
     const { page, limit, type, category, startDate, endDate } = validatedQuery;
+    const userId: Types.ObjectId = new Types.ObjectId(req.user!.id);
 
     // Construir filtros
-    const filters: any = { userId: req.user!.id as any, deleted: false };
+    const filters: any = { userId, deleted: false };
     
     if (type) filters.type = type;
     if (category) filters.category = new RegExp(category, 'i');
     if (startDate || endDate) {
       filters.date = {};
-      if (startDate) filters.date.$gte = new Date(startDate);
-      if (endDate) filters.date.$lte = new Date(endDate);
+      if (startDate) filters.date.$gte = startDate; // Ya es Date por el schema
+      if (endDate) filters.date.$lte = endDate;     // Ya es Date por el schema
     }
 
     // Calcular paginación

@@ -10,6 +10,7 @@ import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import sgMail from '@sendgrid/mail';
 import { authInterfaces} from '../interfaces';
 import { config } from '../config';
+import { logger } from '../utils/logger';
 
 // Opciones de cookie HTTP-only para el token de sesión
 const getCookieOptions = () => ({
@@ -22,7 +23,7 @@ const getCookieOptions = () => ({
 });
 
 // Esquemas de validación con Zod
-export const registerSchema = z.object({
+const registerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(50, 'El nombre no puede exceder 50 caracteres'),
   email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
@@ -30,38 +31,42 @@ export const registerSchema = z.object({
   language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres').optional()
 });
 
-export const loginSchema = z.object({
+const loginSchema = z.object({
   email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(1, 'La contraseña es requerida'),
   recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido')
 });
 
 // NOTA: verifySchema no se usa - la validación se hace inline en verifyEmail
-// export const verifySchema = z.object({
+// const verifySchema = z.object({
 //   token: z.string(),
 //   email: z.string().email('Email inválido')
 // });
 
-export const emailSchema = z.object({
+const emailSchema = z.object({
   email: z.string().email('Email inválido').transform(e => e.toLowerCase())
 });
 
-export const resetPasswordSchema = z.object({
+const resetPasswordSchema = z.object({
   token: z.string(),
   email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
 });
 
-export const changeLanguageSchema = z.object({
+const changeLanguageSchema = z.object({
   language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres')
 });
 
-export const changePasswordSchema = z.object({
+const changeCurrencySchema = z.object({
+  currency: z.string().min(3, 'La moneda debe tener al menos 3 caracteres').max(3, 'La moneda debe tener máximo 3 caracteres')
+});
+
+const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'La contraseña actual es requerida'),
   newPassword: z.string().min(6, 'La nueva contraseña debe tener al menos 6 caracteres')
 });
 
-export const recoveryPasswordSchema = z.object({
+const recoveryPasswordSchema = z.object({
   email: z.string().email('Email inválido').transform(e => e.toLowerCase())
 });
 
@@ -223,7 +228,7 @@ export const resendVerification = async (req: Request, res: Response, next: Next
 
     const verifyLink = `${config.apiUrlBase}${config.apiBasePath}/auth/verify?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
-    console.log('reenviando Link de verificación:', verifyLink);
+    logger.debug('Reenviando link de verificación:', verifyLink);
 
     try {
       const transporter = await createMailTransport();
@@ -310,7 +315,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         html: `<p>Hola ${user.name}, confirma tu correo haciendo clic aquí: <a href="${verifyLink}">Confirmar</a></p>`
       });
     } catch (mailErr) {
-      console.error('Error enviando email de verificación:', mailErr);
+      logger.error('Error enviando email de verificación:', mailErr);
     }
 
     res.status(201).json({
@@ -347,7 +352,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
     const recaptchaValid = await verifyRecaptcha(recaptchaToken);
     if (!recaptchaValid) {
-      console.log('[authController | login] Falló la validación de reCAPTCHA');
+      logger.warn('Falló la validación de reCAPTCHA');
       res.status(400).json({
         success: false,
         message: 'Falló la validación de reCAPTCHA'
@@ -358,7 +363,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // Buscar usuario por email
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      console.log('[authController | login] Usuario no encontrado');
+      logger.debug('Login fallido: usuario no encontrado');
       res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
@@ -369,7 +374,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // Verificar contraseña
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      console.log('[authController | login] Credenciales inválidas');
+      logger.debug('Login fallido: credenciales inválidas');
       res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
@@ -379,7 +384,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
     // Bloquear si no está verificado
     if (!user.isVerified) {
-      console.log('[authController | login] Cuenta no verificada');
+      logger.debug('Login fallido: cuenta no verificada');
       res.status(403).json({
         success: false,
         message: 'Tu cuenta no está verificada. Revisa tu correo o solicita reenvío de verificación.'
@@ -549,7 +554,7 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
     const { email } = recoveryPasswordSchema.parse(req.body);
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('[AUTH | recoveryUserPassword] Usuario no encontrado');
+      logger.debug('Recuperación de contraseña: usuario no encontrado');
       res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
@@ -571,7 +576,7 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
         html: `<p>Hola ${user.name}, restablece tu contraseña haciendo clic aquí: <a href="${resetLink}">Restablecer</a></p>`
       });
     } catch (mailErr) {
-      console.error('[AUTH | recoveryUserPassword] Error enviando email de restablecimiento de contraseña:', mailErr);
+      logger.error('Error enviando email de restablecimiento de contraseña:', mailErr);
     }
     res.json({
       success: true,
@@ -625,8 +630,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
       message: 'Contraseña restablecida exitosamente'
     });
   } catch (error) {
-    console.log('[AUTH | resetPassword] error: ', error);
-    console.log('[AUTH | resetPassword] body: ', req.body);
+    logger.error('Error en resetPassword:', error);
     next(error);
   }
 };
@@ -726,6 +730,48 @@ export const changeLanguage = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+export const updateCurrency = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { currency } = changeCurrencySchema.parse(req.body);
+    
+    // Usar el usuario autenticado
+    if (!req.user?.id) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado'
+      });
+      return;
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+      return;
+    }
+
+    user.currency = currency;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Moneda cambiada exitosamente'
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: error.errors
+      });
+      return;
+    }
+    next(error);
+  }
+};
+
 // Eliminar cuenta de usuario y sus transacciones asociadas
 export const deleteAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -741,7 +787,7 @@ export const deleteAccount = async (req: Request, res: Response, next: NextFunct
 
     // Eliminar todas las transacciones asociadas al usuario
     await Transaction.deleteMany({ userId }).catch((error) => {
-      console.error('[AUTH | deleteAccount] Error eliminando transacciones:\n', userId, '\n', error);
+      logger.error('Error eliminando transacciones del usuario:', userId, error);
     });
 
     // Eliminar el usuario

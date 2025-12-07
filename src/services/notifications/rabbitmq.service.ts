@@ -1,5 +1,6 @@
 import amqp, { ChannelModel, Channel } from 'amqplib';
 import { config } from '../../config';
+import { logger } from '../../utils/logger';
 
 class RabbitMQService {
   private connection: ChannelModel | null = null;
@@ -12,20 +13,20 @@ class RabbitMQService {
 
   async connect() {
     if (!this.isEnabled()) {
-      console.log('ℹ️ RabbitMQ: Notificaciones en tiempo real deshabilitadas');
+      logger.info('ℹ️ RabbitMQ: Notificaciones en tiempo real deshabilitadas');
       return;
     }
 
     try {
-      console.log('📡 RabbitMQ: Conectando a', config.realtime.rabbitmqUrl);
+      logger.info('📡 RabbitMQ: Conectando a', config.realtime.rabbitmqUrl);
       this.connection = await amqp.connect(config.realtime.rabbitmqUrl);
       this.channel = await this.connection.createChannel();
       
       // Exchange tipo 'topic' para permitir wildcard en el consumer
       await this.channel.assertExchange(this.EXCHANGE, 'topic', { durable: true });
-      console.log('✅ RabbitMQ Publisher: Conectado y exchange creado');
+      logger.info('✅ RabbitMQ Publisher: Conectado y exchange creado');
     } catch (error) {
-      console.error('❌ RabbitMQ Publisher: Error al conectar:', error);
+      logger.error('❌ RabbitMQ Publisher: Error al conectar:', error);
       throw error;
     }
   }
@@ -45,7 +46,7 @@ class RabbitMQService {
 
     try {
       if (!this.channel) {
-        console.log('📤 RabbitMQ: Canal no existe, conectando...');
+        logger.debug('📤 RabbitMQ: Canal no existe, conectando...');
         await this.connect();
       }
       
@@ -64,12 +65,12 @@ class RabbitMQService {
       );
 
       if (published) {
-        console.log(`✅ RabbitMQ: Notificación publicada para usuario ${userId}`);
+        logger.debug(`✅ RabbitMQ: Notificación publicada para usuario ${userId}`);
       } else {
-        console.warn(`⚠️ RabbitMQ: Buffer lleno, mensaje en espera para usuario ${userId}`);
+        logger.warn(`⚠️ RabbitMQ: Buffer lleno, mensaje en espera para usuario ${userId}`);
       }
     } catch (error) {
-      console.error('❌ RabbitMQ: Error al publicar notificación:', error);
+      logger.error('❌ RabbitMQ: Error al publicar notificación:', error);
       throw error;
     }
   }

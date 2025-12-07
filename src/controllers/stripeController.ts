@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { z } from 'zod';
 import { User } from '../models/User';
 import { config } from '../config';
+import { logger } from '../utils/logger';
 
 // Inicializar Stripe
 const stripe = new Stripe(config.stripe.secretKey);
@@ -127,7 +128,7 @@ export const handleWebhook = async (
       config.stripe.webhookSecret
     );
   } catch (err) {
-    console.error('Error verificando webhook:', err);
+    logger.error('Error verificando webhook:', err);
     res.status(400).json({
       success: false,
       message: `Webhook Error: ${(err as Error).message}`,
@@ -163,12 +164,12 @@ export const handleWebhook = async (
       }
 
       default:
-        console.log(`Evento no manejado: ${event.type}`);
+        logger.debug(`Evento no manejado: ${event.type}`);
     }
 
     res.json({ received: true });
   } catch (error) {
-    console.error('Error procesando webhook:', error);
+    logger.error('Error procesando webhook:', error);
     next(error);
   }
 };
@@ -179,13 +180,13 @@ export const handleWebhook = async (
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
   const userId = session.metadata?.userId;
   if (!userId) {
-    console.error('checkout.session.completed sin userId en metadata');
+    logger.error('checkout.session.completed sin userId en metadata');
     return;
   }
 
   const user = await User.findById(userId);
   if (!user) {
-    console.error(`Usuario ${userId} no encontrado para checkout completado`);
+    logger.error(`Usuario ${userId} no encontrado para checkout completado`);
     return;
   }
 
@@ -195,7 +196,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
     await user.save();
   }
 
-  console.log(`Checkout completado para usuario ${userId}`);
+  logger.info(`Checkout completado para usuario ${userId}`);
 }
 
 /**
@@ -211,14 +212,14 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription): Prom
       user.subscriptionStatus = subscription.status as any;
       user.subscriptionCurrentPeriodEnd = new Date(subscription.current_period_end * 1000);
       await user.save();
-      console.log(`Suscripción actualizada para usuario ${user._id}: ${subscription.status}`);
+      logger.info(`Suscripción actualizada para usuario ${user._id}: ${subscription.status}`);
     }
     return;
   }
 
   const user = await User.findById(userId);
   if (!user) {
-    console.error(`Usuario ${userId} no encontrado para actualización de suscripción`);
+    logger.error(`Usuario ${userId} no encontrado para actualización de suscripción`);
     return;
   }
 
@@ -227,7 +228,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription): Prom
   user.subscriptionCurrentPeriodEnd = new Date(subscription.current_period_end * 1000);
   await user.save();
 
-  console.log(`Suscripción actualizada para usuario ${userId}: ${subscription.status}`);
+  logger.info(`Suscripción actualizada para usuario ${userId}: ${subscription.status}`);
 }
 
 /**
@@ -236,7 +237,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription): Prom
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
   const user = await User.findOne({ stripeSubscriptionId: subscription.id });
   if (!user) {
-    console.error(`Usuario no encontrado para suscripción eliminada ${subscription.id}`);
+    logger.error(`Usuario no encontrado para suscripción eliminada ${subscription.id}`);
     return;
   }
 
@@ -244,7 +245,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
   user.stripeSubscriptionId = null;
   await user.save();
 
-  console.log(`Suscripción cancelada para usuario ${user._id}`);
+  logger.info(`Suscripción cancelada para usuario ${user._id}`);
 }
 
 /**
@@ -254,14 +255,14 @@ async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
   const customerId = invoice.customer as string;
   const user = await User.findOne({ stripeCustomerId: customerId });
   if (!user) {
-    console.error(`Usuario no encontrado para pago fallido, customer: ${customerId}`);
+    logger.error(`Usuario no encontrado para pago fallido, customer: ${customerId}`);
     return;
   }
 
   user.subscriptionStatus = 'past_due';
   await user.save();
 
-  console.log(`Pago fallido para usuario ${user._id}`);
+  logger.warn(`Pago fallido para usuario ${user._id}`);
 }
 
 /**
