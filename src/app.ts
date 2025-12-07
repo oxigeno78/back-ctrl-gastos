@@ -81,6 +81,10 @@ app.use(
   swaggerUi.setup(swaggerSpec) as unknown as express.RequestHandler
 );
 
+app.get('/', (req, res) => {
+  res.status(200).json({ message: 'API funcionando correctamente' });
+});
+
 // Rutas principales
 app.use(config.apiBasePath, routes);
 
@@ -89,10 +93,6 @@ app.use(notFound);
 
 // Middleware centralizado de manejo de errores
 app.use(errorHandler);
-
-app.get('/', (req, res) => {
-  res.json({ message: 'API funcionando correctamente' });
-});
 
 // Función para conectar a MongoDB
 const connectDB = async () => {
@@ -119,7 +119,7 @@ process.on('SIGINT', async () => {
 });
 
 // Iniciar jobs programados
-const cleanupJob = startCleanupJob();
+// const cleanupJob = startCleanupJob();
 
-export { connectDB, cleanupJob };
+export { connectDB, /* cleanupJob */ };
 export default app;
