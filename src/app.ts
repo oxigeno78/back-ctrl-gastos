@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 import path from 'path';
@@ -13,6 +12,7 @@ import { requestLogger, apiRateLimit, corsErrorHandler } from './middlewares/rat
 import { swaggerSpec } from './swagger';
 import { config } from './config';
 import { startCleanupJob } from './jobs';
+import { logger } from './utils/logger';
 
 const app = express();
 
@@ -38,7 +38,7 @@ app.use(cors({
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.warn(`CORS: Origen bloqueado - ${origin}`);
+      logger.warn(`CORS: Origen bloqueado - ${origin}`);
       callback(new Error('No permitido por CORS'));
     }
   },
@@ -53,7 +53,8 @@ app.use(cors({
 app.use(cookieParser(config.cookie.secret));
 
 // Middlewares de logging y rate limiting
-app.use(morgan('combined'));
+// Morgan deshabilitado - usamos requestLogger con logger personalizado
+// app.use(morgan('combined'));
 app.use(requestLogger);
 app.use(apiRateLimit);
 
@@ -97,22 +98,22 @@ app.get('/', (req, res) => {
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(config.mongoUri);
-    console.log(`MongoDB conectado: ${conn.connection.host}`);
+    logger.info(`MongoDB conectado: ${conn.connection.host}`);
   } catch (error) {
-    console.error('Error conectando a MongoDB:', error);
+    logger.error('Error conectando a MongoDB:', error);
     process.exit(1);
   }
 };
 
 // Manejar cierre graceful del servidor
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM recibido, cerrando servidor...');
+  logger.info('SIGTERM recibido, cerrando servidor...');
   await mongoose.connection.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('SIGINT recibido, cerrando servidor...');
+  logger.info('SIGINT recibido, cerrando servidor...');
   await mongoose.connection.close();
   process.exit(0);
 });

@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { Notification } from '../../models/Notification';
 import { notificationsInterfaces } from '../../interfaces';
 import { config } from '../../config';
+import { logger } from '../../utils/logger';
 
 class NotificationConsumer {
   private connection: ChannelModel | null = null;
@@ -25,7 +26,7 @@ class NotificationConsumer {
 
   private async connect() {
     try {
-      console.log('📡 NotificationConsumer: Conectando a RabbitMQ...');
+      logger.info('📡 NotificationConsumer: Conectando a RabbitMQ...');
       this.connection = await amqp.connect(config.realtime.rabbitmqUrl);
       this.channel = await this.connection.createChannel();
 
@@ -56,20 +57,20 @@ class NotificationConsumer {
         }
       });
 
-      console.log('✅ NotificationConsumer: Conectado y escuchando mensajes');
+      logger.info('✅ NotificationConsumer: Conectado y escuchando mensajes');
 
       // Manejar cierre de conexión
       this.connection.on('close', () => {
-        console.log('⚠️ RabbitMQ connection closed, reconnecting...');
+        logger.warn('⚠️ RabbitMQ connection closed, reconnecting...');
         setTimeout(() => this.connect(), this.RETRY_DELAY);
       });
 
       this.connection.on('error', (err) => {
-        console.error('❌ RabbitMQ connection error:', err);
+        logger.error('❌ RabbitMQ connection error:', err);
       });
 
     } catch (error) {
-      console.error('❌ NotificationConsumer: Error al conectar:', error);
+      logger.error('❌ NotificationConsumer: Error al conectar:', error);
       setTimeout(() => this.connect(), this.RETRY_DELAY);
     }
   }
@@ -82,7 +83,7 @@ class NotificationConsumer {
       const payload: notificationsInterfaces.INotificationPayload = JSON.parse(msg.content.toString());
       const { userId } = payload;
       
-      console.log(`📨 Procesando notificación para usuario: ${userId}`);
+      logger.debug(`📨 Procesando notificación para usuario: ${userId}`);
 
       // SIEMPRE guardar en MongoDB primero
       const savedNotification = await Notification.create({
@@ -115,16 +116,16 @@ class NotificationConsumer {
           read: false,
           createdAt: savedNotification.createdAt,
         });
-        console.log(`✅ Notificación enviada por WebSocket a usuario ${userId}`);
+        logger.debug(`✅ Notificación enviada por WebSocket a usuario ${userId}`);
       } else {
-        console.log(`💾 Notificación guardada para usuario offline ${userId}`);
+        logger.debug(`💾 Notificación guardada para usuario offline ${userId}`);
       }
 
       // ACK: mensaje procesado exitosamente
       this.channel?.ack(msg);
 
     } catch (error) {
-      console.error('❌ Error procesando notificación:', error);
+      logger.error('❌ Error procesando notificación:', error);
       // NACK sin requeue - irá al Dead Letter Exchange
       this.channel?.nack(msg, false, false);
     }
@@ -134,14 +135,14 @@ class NotificationConsumer {
    * Registrar usuario conectado (para envío en tiempo real)
    */
   async subscribeUser(userId: string) {
-    console.log(`📬 Usuario ${userId} conectado, recibirá notificaciones en tiempo real`);
+    logger.debug(`📬 Usuario ${userId} conectado, recibirá notificaciones en tiempo real`);
   }
 
   /**
    * Usuario desconectado (las notificaciones se seguirán guardando en MongoDB)
    */
   async unsubscribeUser(userId: string) {
-    console.log(`📭 Usuario ${userId} desconectado, notificaciones se guardarán en MongoDB`);
+    logger.debug(`📭 Usuario ${userId} desconectado, notificaciones se guardarán en MongoDB`);
   }
 
   /**
@@ -151,9 +152,9 @@ class NotificationConsumer {
     try {
       await this.channel?.close();
       await this.connection?.close();
-      console.log('NotificationConsumer closed');
+      logger.info('NotificationConsumer closed');
     } catch (error) {
-      console.error('Error closing NotificationConsumer:', error);
+      logger.error('Error closing NotificationConsumer:', error);
     }
   }
 }

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { errorInterfaces } from '../interfaces';
 import { config } from '../config';
+import { logger } from '../utils/logger';
 
 // Middleware centralizado de manejo de errores
 export const errorHandler = (
@@ -13,8 +14,7 @@ export const errorHandler = (
   error.message = err.message;
 
   // Log del error
-  console.error(`[ERROR] ${new Date().toISOString()} - ${err.message}`);
-  console.error(err.stack);
+  logger.error(err.message, err);
 
   // Error de validación de Mongoose
   if (err.name === 'ValidationError') {
