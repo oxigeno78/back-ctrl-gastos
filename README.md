@@ -233,9 +233,19 @@ El sistema de notificaciones utiliza RabbitMQ como broker de mensajes y WebSocke
 
 ### Conexión WebSocket (Frontend)
 
+El WebSocket soporta autenticación mediante **HTTP-only cookies** (recomendado) o token manual:
+
 ```typescript
 import { io } from 'socket.io-client';
 
+// Opción 1: HTTP-only cookies (recomendado)
+// El navegador envía automáticamente la cookie de sesión
+const socket = io('http://localhost:5000', {
+  withCredentials: true,
+  transports: ['websocket', 'polling'],
+});
+
+// Opción 2: Token manual (fallback para clientes sin soporte de cookies)
 const socket = io('http://localhost:5000', {
   auth: { token: 'JWT_TOKEN' },
   transports: ['websocket', 'polling'],
@@ -246,6 +256,8 @@ socket.on('notification', (notification) => {
   console.log('Nueva notificación:', notification);
 });
 ```
+
+> 💡 **Nota**: Si el usuario ya tiene sesión iniciada con HTTP-only cookies, solo necesita `withCredentials: true`. El servidor intentará primero leer la cookie y, si no existe, usará el token del `auth`.
 
 ### Estructura de Notificación
 

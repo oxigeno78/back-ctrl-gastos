@@ -61,6 +61,10 @@ const userSchema = new Schema<userInterfaces.IUser>({
     type: String,
     default: 'esp'
   },
+  currency: {
+    type: String,
+    default: 'MXN'
+  },
   // Stripe subscription fields
   stripeCustomerId: {
     type: String,

@@ -49,13 +49,19 @@ const createTransactionSchema = z.object({
   every: z.string().optional(),
 });
 
+// Helper para validar y parsear fechas flexibles
+const dateStringSchema = z.string().refine(
+  (val) => !isNaN(Date.parse(val)),
+  { message: 'Fecha inválida' }
+).transform((val) => new Date(val));
+
 const getTransactionsSchema = z.object({
   page: z.string().optional().transform(val => val ? parseInt(val) : 1),
   limit: z.string().optional().transform(val => val ? parseInt(val) : 10),
   type: z.enum(['income', 'expense']).optional(),
   category: z.string().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional()
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional()
 });
 
 const getTransactionByIdSchema = z.object({
@@ -221,8 +227,8 @@ export const getTransactions = async (req: Request, res: Response, next: NextFun
     if (category) filters.category = new RegExp(category, 'i');
     if (startDate || endDate) {
       filters.date = {};
-      if (startDate) filters.date.$gte = new Date(startDate);
-      if (endDate) filters.date.$lte = new Date(endDate);
+      if (startDate) filters.date.$gte = startDate; // Ya es Date por el schema
+      if (endDate) filters.date.$lte = endDate;     // Ya es Date por el schema
     }
 
     // Calcular paginación

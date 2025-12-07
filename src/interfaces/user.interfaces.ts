@@ -16,6 +16,7 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   language?: string;
+  currency?: string;
   // Stripe subscription fields
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;

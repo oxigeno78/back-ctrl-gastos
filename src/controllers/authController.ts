@@ -23,7 +23,7 @@ const getCookieOptions = () => ({
 });
 
 // Esquemas de validación con Zod
-export const registerSchema = z.object({
+const registerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(50, 'El nombre no puede exceder 50 caracteres'),
   email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
@@ -31,38 +31,42 @@ export const registerSchema = z.object({
   language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres').optional()
 });
 
-export const loginSchema = z.object({
+const loginSchema = z.object({
   email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(1, 'La contraseña es requerida'),
   recaptchaToken: z.string().min(1, 'Token de reCAPTCHA requerido')
 });
 
 // NOTA: verifySchema no se usa - la validación se hace inline en verifyEmail
-// export const verifySchema = z.object({
+// const verifySchema = z.object({
 //   token: z.string(),
 //   email: z.string().email('Email inválido')
 // });
 
-export const emailSchema = z.object({
+const emailSchema = z.object({
   email: z.string().email('Email inválido').transform(e => e.toLowerCase())
 });
 
-export const resetPasswordSchema = z.object({
+const resetPasswordSchema = z.object({
   token: z.string(),
   email: z.string().email('Email inválido').transform(e => e.toLowerCase()),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
 });
 
-export const changeLanguageSchema = z.object({
+const changeLanguageSchema = z.object({
   language: z.string().min(3, 'El idioma debe tener al menos 3 caracteres').max(3, 'El idioma debe tener máximo 3 caracteres')
 });
 
-export const changePasswordSchema = z.object({
+const changeCurrencySchema = z.object({
+  currency: z.string().min(3, 'La moneda debe tener al menos 3 caracteres').max(3, 'La moneda debe tener máximo 3 caracteres')
+});
+
+const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'La contraseña actual es requerida'),
   newPassword: z.string().min(6, 'La nueva contraseña debe tener al menos 6 caracteres')
 });
 
-export const recoveryPasswordSchema = z.object({
+const recoveryPasswordSchema = z.object({
   email: z.string().email('Email inválido').transform(e => e.toLowerCase())
 });
 
@@ -712,6 +716,48 @@ export const changeLanguage = async (req: Request, res: Response, next: NextFunc
     res.json({
       success: true,
       message: 'Idioma cambiado exitosamente'
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: error.errors
+      });
+      return;
+    }
+    next(error);
+  }
+};
+
+export const updateCurrency = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { currency } = changeCurrencySchema.parse(req.body);
+    
+    // Usar el usuario autenticado
+    if (!req.user?.id) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado'
+      });
+      return;
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+      return;
+    }
+
+    user.currency = currency;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Moneda cambiada exitosamente'
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
