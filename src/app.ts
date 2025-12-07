@@ -119,7 +119,7 @@ process.on('SIGINT', async () => {
 });
 
 // Iniciar jobs programados
-const cleanupJob = startCleanupJob();
+// const cleanupJob = startCleanupJob();
 
-export { connectDB, cleanupJob };
+export { connectDB, /* cleanupJob */ };
 export default app;
