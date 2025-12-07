@@ -4,6 +4,7 @@ import { initWebSocketServer } from './services/websocket/socket.server';
 import { config, validateEnv } from './config';
 import { logger } from './utils/logger';
 
+const environment = process.env.NODE_ENV || 'development';
 // Crear servidor HTTP para Express y Socket.io
 const httpServer = createServer(app);
 
@@ -21,6 +22,7 @@ const startServer = async () => {
     }
     
     httpServer.listen(config.port, () => {
+      logger.info(environment);
       logger.info(`🚀 Servidor ejecutándose en puerto ${config.port}`);
       if (config.realtime.enabled) {
         logger.info(`🔌 WebSocket disponible en ws://${config.apiHostName}:${config.port}/socket.io/`);
