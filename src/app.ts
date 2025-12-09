@@ -25,6 +25,8 @@ app.use(helmet());
 // Configuración de CORS para permitir múltiples orígenes
 const allowedOrigins = [
   `http://localhost:${config.port}`,
+  'https://www.nizerapp.net',
+  'http://nizerapp.net',
   config.frontendUrl
 ].filter(Boolean); // Eliminar valores undefined
 
