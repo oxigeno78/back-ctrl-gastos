@@ -21,11 +21,7 @@ const customerPortalSchema = z.object({
  * Crea una sesión de Stripe Checkout para suscripción mensual.
  * El usuario debe estar registrado previamente.
  */
-export const createCheckoutSession = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export const createCheckoutSession = async ( req: Request, res: Response, next: NextFunction ): Promise<void> => {
   try {
     const { userId } = createCheckoutSchema.parse(req.body);
 
