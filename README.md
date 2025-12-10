@@ -18,6 +18,7 @@
 - **Arquitectura production-ready**: Desplegada en AWS Fargate con auto-scaling, WAF y observabilidad completa
 - **Experiencia de usuario en tiempo real**: Notificaciones instantáneas vía WebSockets respaldadas por RabbitMQ
 - **Seguridad enterprise-grade**: Autenticación con HTTP-only cookies, rate limiting, y secretos gestionados en AWS Secrets Manager
+- **MVP en producción:** → [nizerapp.net](https://www.nizerapp.net)
 
 | Métrica | Estado |
 |---------|--------|
