@@ -133,7 +133,7 @@ Consulta `env.example` para ver todas las variables disponibles. Las principales
 | `RABBITMQ_URL` | Conexión a RabbitMQ |
 | `STRIPE_SECRET_KEY` | API key de Stripe |
 
-## �️ Roadmap
+## 🗺️ Roadmap
 
 | Fase | Features | Estado |
 |------|----------|--------|
