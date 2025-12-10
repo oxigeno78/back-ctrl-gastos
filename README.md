@@ -145,7 +145,7 @@ Consulta `env.example` para ver todas las variables disponibles. Las principales
 | **v2.2** | Multi-moneda y tasas de cambio | 📋 Planificado |
 | **v3.0** | API pública para integraciones de terceros | 📋 Planificado |
 
-## �📄 Licencia
+## 📄 Licencia
 
 Todos los derechos reservados.
 Este proyecto es software propietario y confidencial.
