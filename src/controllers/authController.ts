@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import SESTransport from 'nodemailer/lib/ses-transport';
-import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 
 import sgMail from '@sendgrid/mail';
 import { authInterfaces } from '../interfaces';
@@ -142,7 +142,9 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
       throw new Error('AWS_REGION no configurado para usar SES');
     }
 
-    const sesClient = new SESClient({
+    logger.debug('AK', config.email.ses.accessKeyId);
+
+    const sesClient = new SESv2Client({
       region,
       credentials: (config.email.ses.accessKeyId && config.email.ses.secretAccessKey)
         ? {
@@ -156,7 +158,7 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
       nodemailer.createTransport({
         SES: {
           ses: sesClient,
-          aws: { SendRawEmailCommand },
+          aws: { SendEmailCommand },
         },
       } as unknown as SESTransport.Options);
     return transporter;
