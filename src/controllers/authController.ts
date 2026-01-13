@@ -10,7 +10,7 @@ import SESTransport from 'nodemailer/lib/ses-transport';
 import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
 
 import sgMail from '@sendgrid/mail';
-import { authInterfaces} from '../interfaces';
+import { authInterfaces } from '../interfaces';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 
@@ -93,7 +93,7 @@ const verifyRecaptcha = async (token: string): Promise<boolean> => {
     throw new Error(`Error verificando reCAPTCHA: ${response.status}`);
   }
 
-  const data = await response.json() as { success: boolean; score?: number; action?: string; ['error-codes']?: string[] };
+  const data = await response.json() as { success: boolean; score?: number; action?: string;['error-codes']?: string[] };
 
   return Boolean(data.success);
 };
@@ -146,18 +146,19 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
       region,
       credentials: (config.email.ses.accessKeyId && config.email.ses.secretAccessKey)
         ? {
-            accessKeyId: config.email.ses.accessKeyId!,
-            secretAccessKey: config.email.ses.secretAccessKey!
-          }
+          accessKeyId: config.email.ses.accessKeyId!,
+          secretAccessKey: config.email.ses.secretAccessKey!
+        }
         : undefined,
     });
 
-    const transporter = nodemailer.createTransport({
-      SES: {
-        sesClient,
-        aws: SendRawEmailCommand
-      }
-    } as unknown as SESTransport.Options);
+    const transporter: nodemailer.Transporter<SESTransport.SentMessageInfo> =
+      nodemailer.createTransport({
+        SES: {
+          ses: sesClient,
+          aws: { SendRawEmailCommand },
+        },
+      } as unknown as SESTransport.Options);
     return transporter;
   }
 
@@ -165,7 +166,7 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   const { host, port, user, pass } = config.email.smtp;
 
   if (!host || !port || !user || !pass) {
-    if(config.email.debug){
+    if (config.email.debug) {
       logger.debug('Configurando transporter SMTP', config.email.provider);
       logger.debug('Configurando transporter SMTP', config.email.smtp.host);
       logger.debug('Configurando transporter SMTP', config.email.smtp.port);
@@ -281,7 +282,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   try {
     // Validar datos de entrada
     const validatedData = registerSchema.parse(req.body);
-    const { name, email, password, recaptchaToken, language='esp' } = validatedData;
+    const { name, email, password, recaptchaToken, language = 'esp' } = validatedData;
 
     const recaptchaValid = await verifyRecaptcha(recaptchaToken);
     if (!recaptchaValid) {
@@ -307,11 +308,11 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     trialEndDate.setDate(trialEndDate.getDate() + 7);
 
     // Crear nuevo usuario con período de prueba
-    const user = new User({ 
-      name, 
-      email, 
-      password, 
-      isVerified: false, 
+    const user = new User({
+      name,
+      email,
+      password,
+      isVerified: false,
       language,
       subscriptionStatus: 'trialing',
       subscriptionCurrentPeriodEnd: trialEndDate
@@ -339,7 +340,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       });
     } catch (mailErr) {
       logger.error('Error enviando email de verificación:', mailErr);
-      if(config.email.debug){
+      if (config.email.debug) {
         logger.debug('Enviando email de verificación:', verifyLink);
         logger.debug('Enviando email de verificación:', user.email);
         logger.debug('Enviando email de verificación:', config.email.from);
@@ -466,7 +467,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
   try {
     // Obtener email del body o del usuario autenticado
     const email = req.body?.email || req.user?.email;
-    
+
     if (email) {
       const user = await User.findOne({ email }).select('+lastLogoutAt');
       if (user) {
@@ -500,7 +501,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     const cookieToken = req.cookies?.[config.cookie.name];
     const authHeader = req.headers.authorization;
     const headerToken = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-    
+
     const token = cookieToken || headerToken;
 
     if (!token) {
@@ -512,7 +513,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 
     const decoded = jwt.verify(token, config.jwt.secret) as authInterfaces.JWTPayload;
-    
+
     // Verificar que el usuario aún existe
     const user = await User.findById(decoded.userId);
     if (!user) {
@@ -555,7 +556,7 @@ export const getCurrentUser = async (req: Request, res: Response, next: NextFunc
     }
 
     const user = await User.findById(req.user.id).select('name email language subscriptionStatus subscriptionCurrentPeriodEnd');
-    
+
     if (!user) {
       res.status(404).json({
         success: false,
@@ -672,7 +673,7 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
   try {
     // Validar datos de entrada
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
-    
+
     // Usar el usuario autenticado (no permitir cambiar contraseña de otro usuario)
     if (!req.user?.id) {
       res.status(401).json({
@@ -724,7 +725,7 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
 export const changeLanguage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { language } = changeLanguageSchema.parse(req.body);
-    
+
     // Usar el usuario autenticado
     if (!req.user?.id) {
       res.status(401).json({
@@ -766,7 +767,7 @@ export const changeLanguage = async (req: Request, res: Response, next: NextFunc
 export const updateCurrency = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { currency } = changeCurrencySchema.parse(req.body);
-    
+
     // Usar el usuario autenticado
     if (!req.user?.id) {
       res.status(401).json({
