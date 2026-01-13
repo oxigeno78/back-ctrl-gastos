@@ -4,12 +4,11 @@ import { User } from '../models/User';
 import { Transaction } from '../models/Transaction';
 import { z } from 'zod';
 import crypto from 'crypto';
-import * as nodemailer from 'nodemailer';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
-import SESTransport from 'nodemailer/lib/ses-transport';
-import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import { EmailProvider } from '../interfaces/email.interfaces';
+import { SmtpProvider } from '../providers/smtp.provider';
+import { SendGridProvider } from '../providers/sendgrid.provider';
+import { SesProvider } from '../providers/ses.provider';
 
-import sgMail from '@sendgrid/mail';
 import { authInterfaces } from '../interfaces';
 import { config } from '../config';
 import { logger } from '../utils/logger';
@@ -105,87 +104,29 @@ export const generateToken = (payload: authInterfaces.JWTPayload): string => {
   } as jwt.SignOptions);
 };
 
-// Helper para crear transporte de correo (SMTP o AWS SES)
-const createMailTransport = async (): Promise<nodemailer.Transporter> => {
+export function createEmailProvider(): EmailProvider {
   const provider = config.email.provider.toLowerCase();
 
-  if (provider === 'sendgrid') {
-    if (!config.email.sendgrid.apiKey) {
-      throw new Error('SENDGRID_API_KEY no está configurado para usar SendGrid');
-    }
-
-    sgMail.setApiKey(config.email.sendgrid.apiKey);
-
-    const transporter = {
-      // Adaptador simple para imitar nodemailer Transporter
-      sendMail: async (options: nodemailer.SendMailOptions) => {
-        const msg = {
-          to: options.to as any,
-          from: (options.from as any) || config.email.from,
-          subject: options.subject,
-          html: options.html,
-          text: options.text,
-        } as sgMail.MailDataRequired;
-
-        await sgMail.send(msg);
-
-        return {} as any;
-      },
-    } as any as nodemailer.Transporter;
-
-    return transporter;
+  if (provider === "smtp") {
+    return new SmtpProvider(config.email.smtp);
   }
 
-  if (provider === 'ses') {
-    const region = config.email.ses.region;
-    if (!region) {
-      throw new Error('AWS_REGION no configurado para usar SES');
-    }
+  if (provider === "sendgrid") {
+    return new SendGridProvider(config.email.sendgrid.apiKey);
+  }
 
-    logger.debug('AK', config.email.ses.accessKeyId);
-
-    const sesClient = new SESv2Client({
-      region,
-      credentials: (config.email.ses.accessKeyId && config.email.ses.secretAccessKey)
-        ? {
-          accessKeyId: config.email.ses.accessKeyId!,
-          secretAccessKey: config.email.ses.secretAccessKey!
-        }
-        : undefined,
+  if (provider === "ses") {
+    return new SesProvider({
+      region: config.email.ses.region,
+      from: config.email.from,
+      accessKeyId: config.email.ses.accessKeyId,
+      secretAccessKey: config.email.ses.secretAccessKey,
     });
-
-    const transporter: nodemailer.Transporter<SESTransport.SentMessageInfo> =
-      nodemailer.createTransport({
-        SES: {
-          ses: sesClient,
-          aws: { SendEmailCommand },
-        },
-      } as unknown as SESTransport.Options);
-    return transporter;
   }
 
-  // Default: SMTP (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)
-  const { host, port, user, pass } = config.email.smtp;
-
-  if (!host || !port || !user || !pass) {
-    if (config.email.debug) {
-      logger.debug('Configurando transporter SMTP', config.email.provider);
-      logger.debug('Configurando transporter SMTP', config.email.smtp.host);
-      logger.debug('Configurando transporter SMTP', config.email.smtp.port);
-      logger.debug('Configurando transporter SMTP', config.email.smtp.user);
-      logger.debug('Configurando transporter SMTP', config.aws.region);
-      logger.debug('Configurando transporter SMTP', config.email.from);
-    }
-    throw new Error('SMTP no está configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
-  }
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-  } as SMTPTransport.Options);
+  throw new Error(`Proveedor de email no soportado: ${provider}`);
 }
+
 
 // Verificar correo
 export const verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -257,7 +198,7 @@ export const resendVerification = async (req: Request, res: Response, next: Next
     logger.debug('Reenviando link de verificación:', verifyLink);
 
     try {
-      const transporter = await createMailTransport();
+      const transporter = await createEmailProvider();
       await transporter.sendMail({
         from: config.email.from,
         to: user.email,
@@ -333,7 +274,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 
     // Enviar email de verificación
     try {
-      const transporter = await createMailTransport();
+      const transporter = await createEmailProvider();
       await transporter.sendMail({
         from: config.email.from,
         to: user.email,
@@ -342,16 +283,6 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       });
     } catch (mailErr) {
       logger.error('Error enviando email de verificación:', mailErr);
-      if (config.email.debug) {
-        logger.debug('Enviando email de verificación:', verifyLink);
-        logger.debug('Enviando email de verificación:', user.email);
-        logger.debug('Enviando email de verificación:', config.email.from);
-        logger.debug('Enviando email de verificación:', config.email.provider);
-        logger.debug('Enviando email de verificación:', config.email.smtp.host);
-        logger.debug('Enviando email de verificación:', config.email.smtp.port);
-        logger.debug('Enviando email de verificación:', config.email.smtp.user);
-        logger.debug('Enviando email de verificación:', config.aws.region);
-      }
     }
 
     res.status(201).json({
@@ -604,7 +535,7 @@ export const recoveryUserPassword = async (req: Request, res: Response, next: Ne
     await user.save();
     const resetLink = `${config.frontendUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
     try {
-      const transporter = await createMailTransport();
+      const transporter = await createEmailProvider();
       await transporter.sendMail({
         from: config.email.from,
         to: user.email,
