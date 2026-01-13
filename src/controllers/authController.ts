@@ -316,6 +316,17 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       });
     } catch (mailErr) {
       logger.error('Error enviando email de verificación:', mailErr);
+      if(config.email.debug){
+        logger.debug('Enviando email de verificación:', verifyLink);
+        logger.debug('Enviando email de verificación:', user.email);
+        logger.debug('Enviando email de verificación:', config.email.from);
+        logger.debug('Enviando email de verificación:', config.email.provider);
+        logger.debug('Enviando email de verificación:', config.email.smtp.host);
+        logger.debug('Enviando email de verificación:', config.email.smtp.port);
+        logger.debug('Enviando email de verificación:', config.email.smtp.user);
+        logger.debug('Enviando email de verificación:', config.aws.region);
+      }
+
     }
 
     res.status(201).json({
