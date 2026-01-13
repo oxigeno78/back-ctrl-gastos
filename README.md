@@ -18,6 +18,7 @@
 - **Arquitectura production-ready**: Desplegada en AWS Fargate con auto-scaling, WAF y observabilidad completa
 - **Experiencia de usuario en tiempo real**: Notificaciones instantáneas vía WebSockets respaldadas por RabbitMQ
 - **Seguridad enterprise-grade**: Autenticación con HTTP-only cookies, rate limiting, y secretos gestionados en AWS Secrets Manager
+- **MVP en producción:** → [nizerapp.net](https://www.nizerapp.net)
 
 | Métrica | Estado |
 |---------|--------|
@@ -132,7 +133,7 @@ Consulta `env.example` para ver todas las variables disponibles. Las principales
 | `RABBITMQ_URL` | Conexión a RabbitMQ |
 | `STRIPE_SECRET_KEY` | API key de Stripe |
 
-## �️ Roadmap
+## 🗺️ Roadmap
 
 | Fase | Features | Estado |
 |------|----------|--------|
@@ -144,7 +145,7 @@ Consulta `env.example` para ver todas las variables disponibles. Las principales
 | **v2.2** | Multi-moneda y tasas de cambio | 📋 Planificado |
 | **v3.0** | API pública para integraciones de terceros | 📋 Planificado |
 
-## �📄 Licencia
+## 📄 Licencia
 
 Todos los derechos reservados.
 Este proyecto es software propietario y confidencial.

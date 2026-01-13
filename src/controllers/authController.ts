@@ -154,7 +154,7 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
 
     // Nodemailer con AWS SDK v3 (SESv2) usando SendEmailCommand
     const transporter = nodemailer.createTransport({
-      SES: { ses, aws: { SendEmailCommand } } as any
+      SES: { client: ses, aws: { SendEmailCommand } } as any
     } as any);
     return transporter;
   }
