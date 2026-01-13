@@ -6,7 +6,9 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
-import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
+import SESTransport from 'nodemailer/lib/ses-transport';
+import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
+
 import sgMail from '@sendgrid/mail';
 import { authInterfaces} from '../interfaces';
 import { config } from '../config';
@@ -135,28 +137,27 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   }
 
   if (provider === 'ses') {
-    const region = config.email.ses.region || config.aws.region;
+    const region = config.email.ses.region;
     if (!region) {
       throw new Error('AWS_REGION no configurado para usar SES');
     }
 
-    const ses = (!config.email.ses.accessKeyId || !config.email.ses.secretAccessKey)
-      // Usa proveedor de credenciales por defecto (variables de entorno estándar de AWS,
-      // perfiles, roles de instancia, etc.) si no se especifican las claves personalizadas.
-      ? new SESv2Client({ region })
-      : new SESv2Client({
-          region,
-          credentials: {
-            accessKeyId: config.email.ses.accessKeyId,
-            secretAccessKey: config.email.ses.secretAccessKey,
-          },
-        });
+    const sesClient = new SESClient({
+      region,
+      credentials: (config.email.ses.accessKeyId && config.email.ses.secretAccessKey)
+        ? {
+            accessKeyId: config.email.ses.accessKeyId!,
+            secretAccessKey: config.email.ses.secretAccessKey!
+          }
+        : undefined,
+    });
 
-    // Nodemailer con AWS SDK v3 (SESv2) usando SendEmailCommand
     const transporter = nodemailer.createTransport({
-      // Aporta ambas propiedades para compatibilidad: sesClient para región/credenciales y SendEmailCommand en la raíz
-      SES: { sesClient: ses, ses, SendEmailCommand, aws: { SendEmailCommand } } as any
-    } as any);
+      SES: {
+        sesClient,
+        aws: SendRawEmailCommand
+      }
+    } as unknown as SESTransport.Options);
     return transporter;
   }
 

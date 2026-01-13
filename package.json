@@ -22,9 +22,11 @@
     "test": "jest"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.967.0",
     "@aws-sdk/client-sesv2": "^3.670.0",
     "@sendgrid/mail": "^8.1.6",
     "amqplib": "^0.10.9",
+    "aws-sdk": "^2.1693.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
