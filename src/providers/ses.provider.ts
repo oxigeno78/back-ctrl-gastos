@@ -7,7 +7,12 @@ export class SesProvider implements EmailProvider {
     private from: string;
 
     constructor(config: { region: string; from: string; accessKeyId?: string; secretAccessKey?: string }) {
-        logger.debug('Configurando SesProvider', config.region, config.from, config.accessKeyId);
+        logger.debug('SES ENV CHECK:', {
+            region: config.region,
+            from: config.from,
+            accessKeyId: !!config.accessKeyId,
+            secretAccessKey: !!config.secretAccessKey,
+        });
         this.from = config.from;
 
         this.client = new SESv2Client({
