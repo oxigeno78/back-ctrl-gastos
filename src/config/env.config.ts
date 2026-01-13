@@ -42,6 +42,7 @@ export const config = {
   email: {
     provider: process.env.EMAIL_PROVIDER || 'smtp',
     from: process.env.MAILER_FROM || '',
+    debug: process.env.MAILER_DEBUG === 'true',
     smtp: {
       host: process.env.SMTP_HOST || '',
       port: parseInt(process.env.SMTP_PORT || '465', 10),
