@@ -135,10 +135,23 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   }
 
   if (provider === 'ses') {
-    if (!config.aws.region) {
+    const region = config.email.ses.region || config.aws.region;
+    if (!region) {
       throw new Error('AWS_REGION no configurado para usar SES');
     }
-    const ses = new SESv2Client({ region: config.aws.region });
+
+    const ses = (!config.email.ses.accessKeyId || !config.email.ses.secretAccessKey)
+      // Usa proveedor de credenciales por defecto (variables de entorno estándar de AWS,
+      // perfiles, roles de instancia, etc.) si no se especifican las claves personalizadas.
+      ? new SESv2Client({ region })
+      : new SESv2Client({
+          region,
+          credentials: {
+            accessKeyId: config.email.ses.accessKeyId,
+            secretAccessKey: config.email.ses.secretAccessKey,
+          },
+        });
+
     // Nodemailer con AWS SDK v3 (SESv2) usando SendEmailCommand
     const transporter = nodemailer.createTransport({
       SES: { ses, aws: { SendEmailCommand } } as any
