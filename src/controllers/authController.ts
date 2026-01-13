@@ -150,6 +150,14 @@ const createMailTransport = async (): Promise<nodemailer.Transporter> => {
   const { host, port, user, pass } = config.email.smtp;
 
   if (!host || !port || !user || !pass) {
+    if(config.email.debug){
+      logger.debug('Configurando transporter SMTP', config.email.provider);
+      logger.debug('Configurando transporter SMTP', config.email.smtp.host);
+      logger.debug('Configurando transporter SMTP', config.email.smtp.port);
+      logger.debug('Configurando transporter SMTP', config.email.smtp.user);
+      logger.debug('Configurando transporter SMTP', config.aws.region);
+      logger.debug('Configurando transporter SMTP', config.email.from);
+    }
     throw new Error('SMTP no está configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS');
   }
 
@@ -326,7 +334,6 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         logger.debug('Enviando email de verificación:', config.email.smtp.user);
         logger.debug('Enviando email de verificación:', config.aws.region);
       }
-
     }
 
     res.status(201).json({
