@@ -1,7 +1,14 @@
 import dotenv from 'dotenv';
+import { logger } from '../utils/logger';
 
 // Cargar variables de entorno
 dotenv.config();
+
+logger.debug("SES ENV CHECK", {
+  region: process.env.AWS_REGION,
+  hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
+  hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
+});
 
 /**
  * Configuración centralizada de variables de entorno.
@@ -54,8 +61,8 @@ export const config = {
     },
     ses: {
       region: process.env.AWS_REGION || 'us-east-1',
-      accessKeyId: process.env.AWS_AK || undefined,
-      secretAccessKey: process.env.AWS_SK || undefined,
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || undefined,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || undefined,
     }
   },
 
