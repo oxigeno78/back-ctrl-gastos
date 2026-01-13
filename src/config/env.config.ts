@@ -1,14 +1,7 @@
 import dotenv from 'dotenv';
-import { logger } from '../utils/logger';
 
 // Cargar variables de entorno
 dotenv.config();
-
-logger.debug("SES ENV CHECK", {
-  region: process.env.AWS_REGION,
-  hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
-  hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
-});
 
 /**
  * Configuración centralizada de variables de entorno.
