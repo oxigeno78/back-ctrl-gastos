@@ -80,7 +80,7 @@ export const createUserTheme = async (req: Request, res: Response, next: NextFun
         res.status(201).json({
             success: true,
             message: 'Theme created successfully',
-            data: `Theme ${theme.meta.name} in mode ${theme.mode} was created successfully`
+            data: `Theme ${theme.meta!.name} in mode ${theme.mode} was created successfully`
         });
     } catch (error) {
         logger.error('Error creating user theme', error);
@@ -96,7 +96,7 @@ export const createUserTheme = async (req: Request, res: Response, next: NextFun
  */
 export const getUserThemes = async ( req: Request, res: Response, next: NextFunction ) => {
     try {
-        const themes = await Theme.find({ userId: req.user!.id }).select('_id name mode');
+        const themes = await Theme.find({ userId: req.user!.id }).select('_id meta.name mode');
         res.json({
             success: true,
             data: themes
@@ -143,7 +143,7 @@ export const updateUserTheme = async ( req: Request, res: Response, next: NextFu
         res.json({
             success: true,
             message: 'Theme updated successfully',
-            data: `Theme ${theme?.meta.name} in mode ${theme?.mode} was updated successfully`
+            data: `Theme ${theme?.meta?.name} in mode ${theme?.mode} was updated successfully`
         });
     } catch (error) {
         logger.error('Error updating user theme', error);
