@@ -66,6 +66,14 @@ La respuesta incluye `periodicityText` con el texto legible de la periodicidad.
 | `PUT` | `/categories/:_id` | Actualizar categoría de usuario | ✅ |
 | `DELETE` | `/categories/:_id` | Eliminar categoría de usuario | ✅ |
 
+## Temas de usuario
+
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| `POST` | `/themes/theme` | Crear tema para el usuario autenticado | ✅ |
+| `GET` | `/themes/themes` | Listar todos los temas del usuario | ✅ |
+| `PUT` | `/themes/theme/:_id` | Actualizar un tema existente del usuario | ✅ |
+
 ## Notificaciones
 
 | Método | Endpoint | Descripción | Auth |

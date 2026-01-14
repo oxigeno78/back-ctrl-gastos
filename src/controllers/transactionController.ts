@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { Types } from 'mongoose';
 import { periodicity } from '../interfaces/transaction.interfaces';
 import { notificationService } from '../services/notifications/notification.service';
-import { logger } from '../utils/logger';
 
 // Helper para verificar si un string es un ObjectId válido
 const isValidObjectId = (str: string): boolean => Types.ObjectId.isValid(str) && new Types.ObjectId(str).toString() === str;
