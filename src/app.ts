@@ -11,7 +11,7 @@ import { errorHandler, notFound } from './middlewares/errorHandler';
 import { requestLogger, apiRateLimit, corsErrorHandler } from './middlewares/rateLimiting';
 import { swaggerSpec } from './swagger';
 import { config } from './config';
-// import { startCleanupJob } from './jobs';
+import { startCleanupJob } from './jobs';
 import { logger } from './utils/logger';
 
 const app = express();
@@ -121,7 +121,7 @@ process.on('SIGINT', async () => {
 });
 
 // Iniciar jobs programados
-// const cleanupJob = startCleanupJob();
+const cleanupJob = startCleanupJob();
 
-export { connectDB, /* cleanupJob */ };
+export { connectDB, cleanupJob};
 export default app;
