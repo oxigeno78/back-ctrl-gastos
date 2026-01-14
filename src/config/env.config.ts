@@ -53,7 +53,7 @@ export const config = {
       apiKey: process.env.SENDGRID_API_KEY || '',
     },
     ses: {
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: process.env.AWS_REGION || 'us-west-1',
       accessKeyId: process.env.AWS_ACCESS_KEY_ID || undefined,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || undefined,
     }
