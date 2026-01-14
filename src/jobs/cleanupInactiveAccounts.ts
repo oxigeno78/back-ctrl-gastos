@@ -14,6 +14,7 @@ import { logger } from '../utils/logger';
  */
 
 const DAYS_BEFORE_CLEANUP = 30;
+const DAYS_BEFORE_CLEANUP_FOR_UNVERIFIED = 7;
 
 export const startCleanupJob = (): cron.ScheduledTask => {
   // Ejecutar diariamente a las 3:00 AM
@@ -22,7 +23,9 @@ export const startCleanupJob = (): cron.ScheduledTask => {
     
     try {
       const cutoffDate = new Date();
+      const cutoffDateForUnverified = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - DAYS_BEFORE_CLEANUP);
+      cutoffDateForUnverified.setDate(cutoffDateForUnverified.getDate() - DAYS_BEFORE_CLEANUP_FOR_UNVERIFIED);
 
       const result = await User.deleteMany({
         $or: [
@@ -39,7 +42,7 @@ export const startCleanupJob = (): cron.ScheduledTask => {
           // Cuentas sin verificar email por más de 30 días
           {
             isVerified: false,
-            createdAt: { $lt: cutoffDate }
+            createdAt: { $lt: cutoffDateForUnverified }
           }
         ]
       });
@@ -65,7 +68,9 @@ export const runCleanupNow = async (): Promise<{ deletedCount: number }> => {
   logger.info('Ejecutando limpieza manual...');
   
   const cutoffDate = new Date();
+  const cutoffDateForUnverified = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - DAYS_BEFORE_CLEANUP);
+  cutoffDateForUnverified.setDate(cutoffDateForUnverified.getDate() - DAYS_BEFORE_CLEANUP_FOR_UNVERIFIED);
 
   const result = await User.deleteMany({
     $or: [
@@ -79,7 +84,7 @@ export const runCleanupNow = async (): Promise<{ deletedCount: number }> => {
       },
       {
         isVerified: false,
-        createdAt: { $lt: cutoffDate }
+        createdAt: { $lt: cutoffDateForUnverified }
       }
     ]
   });
