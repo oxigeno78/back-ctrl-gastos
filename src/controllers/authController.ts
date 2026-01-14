@@ -4,7 +4,7 @@ import { User } from '../models/User';
 import { Transaction } from '../models/Transaction';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { EmailProvider } from '../interfaces/email.interfaces';
+import { EmailProvider, SesProviderConfig } from '../interfaces/email.interfaces';
 import { SmtpProvider } from '../providers/smtp.provider';
 import { SendGridProvider } from '../providers/sendgrid.provider';
 import { SesProvider } from '../providers/ses.provider';
@@ -106,6 +106,7 @@ export const generateToken = (payload: authInterfaces.JWTPayload): string => {
 
 export function createEmailProvider(): EmailProvider {
   const provider = config.email.provider.toLowerCase();
+  logger.debug('Configurando proveedor de email:', provider);
 
   if (provider === "smtp") {
     return new SmtpProvider(config.email.smtp);
@@ -116,12 +117,13 @@ export function createEmailProvider(): EmailProvider {
   }
 
   if (provider === "ses") {
-    return new SesProvider({
+    const providerConfig: SesProviderConfig = {
       region: config.email.ses.region,
       from: config.email.from,
-      accessKeyId: config.email.ses.accessKeyId,
-      secretAccessKey: config.email.ses.secretAccessKey,
-    });
+      accessKeyId: config.email.ses.accessKeyId!.trim(),
+      secretAccessKey: config.email.ses.secretAccessKey!.trim(),
+    }
+    return new SesProvider(providerConfig);
   }
 
   throw new Error(`Proveedor de email no soportado: ${provider}`);
