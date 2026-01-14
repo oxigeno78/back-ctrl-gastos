@@ -5,6 +5,7 @@ import metricsRoutes from './metricsRoutes';
 import categoriesRoutes from './categoriesRoutes';
 import notificationsRoutes from './notificationsRoutes';
 import stripeRoutes from './stripeRoutes';
+import themesRoutes from './themesRoutes';
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.use('/auth', authRoutes);
 router.use('/transactions', transactionRoutes);
 router.use('/metrics', metricsRoutes);
 router.use('/categories', categoriesRoutes);
+router.use('/themes', themesRoutes);
 router.use('/notifications', notificationsRoutes);
 router.use('/stripe', stripeRoutes);
 

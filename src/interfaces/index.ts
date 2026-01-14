@@ -4,6 +4,7 @@ import * as transactionsInterfaces from './transaction.interfaces';
 import * as errorInterfaces from './error.interfaces';
 import * as categoriesInterfaces from './categories.interfaces';
 import * as notificationsInterfaces from './notifications.interface';
+import * as themesInterfaces from './themes.interface';
 
 export {
   authInterfaces,
@@ -11,5 +12,6 @@ export {
   transactionsInterfaces,
   errorInterfaces,
   categoriesInterfaces,
-  notificationsInterfaces
+  notificationsInterfaces,
+  themesInterfaces
 };
