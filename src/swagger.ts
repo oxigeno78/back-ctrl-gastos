@@ -26,6 +26,7 @@ const options: swaggerJSDoc.Options = {
       { name: 'Auth', description: 'Autenticación y gestión de usuarios' },
       { name: 'Transactions', description: 'Gestión de transacciones (ingresos/gastos)' },
       { name: 'Categories', description: 'Gestión de categorías' },
+      { name: 'Themes', description: 'Gestión de temas visuales por usuario' },
       { name: 'Notifications', description: 'Sistema de notificaciones' },
       { name: 'Metrics', description: 'Métricas del sistema' },
       { name: 'Stripe', description: 'Suscripciones y pagos con Stripe' },
@@ -187,6 +188,110 @@ const options: swaggerJSDoc.Options = {
           properties: {
             sessionId: { type: 'string', example: 'cs_test_xxx' },
             url: { type: 'string', format: 'uri', example: 'https://checkout.stripe.com/c/pay/cs_test_xxx' },
+          },
+        },
+        ThemeMeta: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', example: 'Aurora' },
+            description: { type: 'string', example: 'Tema claro con acentos verdes' },
+            isDefault: { type: 'boolean', example: false },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        ThemePalette: {
+          type: 'object',
+          properties: {
+            primary: { type: 'string', example: '#16a34a' },
+            secondary: { type: 'string', example: '#0ea5e9' },
+            success: { type: 'string', example: '#22c55e' },
+            warning: { type: 'string', example: '#f59e0b' },
+            error: { type: 'string', example: '#ef4444' },
+            info: { type: 'string', example: '#3b82f6' },
+            background: {
+              type: 'object',
+              properties: {
+                app: { type: 'string', example: '#f8fafc' },
+                container: { type: 'string', example: '#ffffff' },
+                elevated: { type: 'string', example: '#e2e8f0' },
+              },
+            },
+            text: {
+              type: 'object',
+              properties: {
+                primary: { type: 'string', example: '#0f172a' },
+                secondary: { type: 'string', example: '#475569' },
+                disabled: { type: 'string', example: '#94a3b8' },
+              },
+            },
+            border: {
+              type: 'object',
+              properties: {
+                color: { type: 'string', example: '#cbd5e1' },
+                radius: { type: 'number', example: 12 },
+              },
+            },
+          },
+        },
+        ThemeTypography: {
+          type: 'object',
+          properties: {
+            fontFamily: { type: 'string', example: 'Inter, sans-serif' },
+            fontSizeBase: { type: 'number', example: 16 },
+            lineHeight: { type: 'number', example: 1.5 },
+            headingWeight: { type: 'number', example: 700 },
+            bodyWeight: { type: 'number', example: 400 },
+          },
+        },
+        ThemeLayout: {
+          type: 'object',
+          properties: {
+            headerHeight: { type: 'number', example: 64 },
+            sidebarWidth: { type: 'number', example: 280 },
+            contentPadding: { type: 'number', example: 24 },
+          },
+        },
+        ThemeComponents: {
+          type: 'object',
+          properties: {
+            button: {
+              type: 'object',
+              properties: {
+                borderRadius: { type: 'number', example: 12 },
+              },
+            },
+            card: {
+              type: 'object',
+              properties: {
+                borderRadius: { type: 'number', example: 16 },
+              },
+            },
+          },
+        },
+        Theme: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '65a5b9c41f9db20013e7b001' },
+            userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            meta: { $ref: '#/components/schemas/ThemeMeta' },
+            mode: { type: 'string', example: 'light' },
+            palette: { $ref: '#/components/schemas/ThemePalette' },
+            typography: { $ref: '#/components/schemas/ThemeTypography' },
+            layout: { $ref: '#/components/schemas/ThemeLayout' },
+            components: { $ref: '#/components/schemas/ThemeComponents' },
+          },
+        },
+        ThemeInput: {
+          type: 'object',
+          required: ['meta', 'mode', 'palette', 'typography', 'layout'],
+          properties: {
+            meta: { $ref: '#/components/schemas/ThemeMeta' },
+            mode: { type: 'string', example: 'light' },
+            palette: { $ref: '#/components/schemas/ThemePalette' },
+            typography: { $ref: '#/components/schemas/ThemeTypography' },
+            layout: { $ref: '#/components/schemas/ThemeLayout' },
+            components: { $ref: '#/components/schemas/ThemeComponents' },
           },
         },
       },
@@ -764,6 +869,115 @@ const options: swaggerJSDoc.Options = {
             },
             400: { description: 'startDate y endDate son requeridos' },
             401: { description: 'No autenticado' },
+          },
+        },
+      },
+      // Themes
+      '/themes/theme': {
+        post: {
+          tags: ['Themes'],
+          summary: 'Crear tema de usuario',
+          description: 'Crea un tema asociado al usuario autenticado.',
+          security: [{ CookieAuth: [] }, { BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ThemeInput' },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: 'Tema creado',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      message: { type: 'string', example: 'Theme created successfully' },
+                      data: { type: 'string', example: 'Theme Aurora in mode light was created successfully' },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'Datos inválidos' },
+            401: { description: 'No autenticado' },
+          },
+        },
+      },
+      '/themes': {
+        get: {
+          tags: ['Themes'],
+          summary: 'Listar temas del usuario',
+          description: 'Obtiene todos los temas asociados al usuario autenticado.',
+          security: [{ CookieAuth: [] }, { BearerAuth: [] }],
+          responses: {
+            200: {
+              description: 'Listado de temas',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      data: {
+                        type: 'array',
+                        items: { $ref: '#/components/schemas/Theme' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            401: { description: 'No autenticado' },
+          },
+        },
+      },
+      '/themes/theme/{_id}': {
+        put: {
+          tags: ['Themes'],
+          summary: 'Actualizar tema de usuario',
+          description: 'Actualiza un tema existente del usuario autenticado.',
+          security: [{ CookieAuth: [] }, { BearerAuth: [] }],
+          parameters: [
+            {
+              name: '_id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', example: '65a5b9c41f9db20013e7b001' },
+              description: 'ID del tema a actualizar',
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ThemeInput' },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: 'Tema actualizado',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      message: { type: 'string', example: 'Theme updated successfully' },
+                      data: { type: 'string', example: 'Theme Aurora in mode light was updated successfully' },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'Datos inválidos' },
+            401: { description: 'No autenticado' },
+            404: { description: 'Tema no encontrado' },
           },
         },
       },
