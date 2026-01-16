@@ -16,7 +16,7 @@ export const authRateLimit = rateLimit({
 
 // Rate limiting general para API
 export const apiRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
+  windowMs: 1 * 60 * 1000, // 15 minutos
   max: 100, // máximo 100 requests por IP
   message: {
     success: false,

@@ -12,6 +12,8 @@ import { SesProvider } from '../providers/ses.provider';
 import { authInterfaces } from '../interfaces';
 import { config } from '../config';
 import { logger } from '../utils/logger';
+import { AppTheme } from '@/interfaces/themes.interface';
+import { Theme } from '../models/Theme';
 
 // Opciones de cookie HTTP-only para el token de sesión
 const getCookieOptions = () => ({
@@ -60,6 +62,10 @@ const changeLanguageSchema = z.object({
 
 const changeCurrencySchema = z.object({
   currency: z.string().min(3, 'La moneda debe tener al menos 3 caracteres').max(3, 'La moneda debe tener máximo 3 caracteres')
+});
+
+const updateThemeSchema = z.object({
+  _id: z.string().min(1, 'El ID es requerido')
 });
 
 const changePasswordSchema = z.object({
@@ -330,7 +336,10 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     }
 
     // Buscar usuario por email
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password').populate({
+      path: 'theme',
+      select: 'meta.name'
+    });
     if (!user) {
       logger.debug('Login fallido: usuario no encontrado');
       res.status(401).json({
@@ -373,16 +382,22 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // Establecer cookie HTTP-only con el token
     res.cookie(config.cookie.name, token, getCookieOptions());
 
+    const theme: AppTheme = user.theme as AppTheme;
+    logger.info('theme', typeof theme, theme);
+    const userTheme = theme && theme.meta ? theme.meta.name : 'dark';
+    logger.info('user theme', typeof userTheme, userTheme);
+
     res.json({
       success: true,
       message: 'Login exitoso',
       data: {
         user: {
           id: (user._id as any).toString(),
-          name: user.name,
-          email: user.email
+          name: user.name
         },
-        language: user.language
+        language: user.language,
+        currency: user.currency,
+        theme: userTheme
       }
     });
   } catch (error) {
@@ -740,6 +755,42 @@ export const updateCurrency = async (req: Request, res: Response, next: NextFunc
     next(error);
   }
 };
+
+export const updateUserTheme = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const validateData = updateThemeSchema.parse(req.body);
+    if(!req.user?.id){
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado...'
+      });
+      return;
+    }
+    const user = await User.findById(req.user.id);
+    user && (user.theme = validateData._id);
+    user && await user.save();
+    
+    res.json({
+      success: true,
+      message: 'Tema actualizado exitosamente'
+    });
+  } catch (error) {
+    logger.error('Error actualizando tema del usuario:', error);
+    next(error);
+  }
+}
+
+export const setDefaultTheme = async ( req: Request, res: Response, next: NextFunction ) => {
+  try {
+    await User.updateOne({ _id: req.user?.id }, { theme: null });
+    res.json({
+      success: true,
+      message: 'Tema por defecto establecido exitosamente'
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
 // Eliminar cuenta de usuario y sus transacciones asociadas
 export const deleteAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

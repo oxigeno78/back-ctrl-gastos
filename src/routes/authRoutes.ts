@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, logout, verifyEmail, resendVerification, recoveryUserPassword, resetPassword, authenticateToken, deleteAccount, changePassword, changeLanguage, getCurrentUser, updateCurrency } from '../controllers/authController';
+import { register, login, logout, verifyEmail, resendVerification, recoveryUserPassword, resetPassword, authenticateToken, deleteAccount, changePassword, changeLanguage, getCurrentUser, updateCurrency, updateUserTheme, setDefaultTheme } from '../controllers/authController';
 
 const router = Router();
 
@@ -18,5 +18,7 @@ router.post('/change-password', authenticateToken, changePassword);
 router.put('/language', authenticateToken, changeLanguage);
 router.put('/currency', authenticateToken, updateCurrency);
 router.delete('/account', authenticateToken, deleteAccount);
+router.put('/theme', authenticateToken, updateUserTheme);
+router.put('/default-theme', authenticateToken, setDefaultTheme);
 
 export default router;

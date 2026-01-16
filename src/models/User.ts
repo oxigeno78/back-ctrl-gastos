@@ -1,4 +1,4 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { userInterfaces } from '../interfaces';
 
@@ -64,6 +64,11 @@ const userSchema = new Schema<userInterfaces.IUser>({
   currency: {
     type: String,
     default: 'MXN'
+  },
+  theme: {
+    type: Types.ObjectId,
+    ref: 'Theme',
+    default: null
   },
   // Stripe subscription fields
   stripeCustomerId: {

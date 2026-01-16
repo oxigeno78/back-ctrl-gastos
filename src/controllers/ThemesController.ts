@@ -5,13 +5,19 @@ import { logger } from '../utils/logger';
 
 // Esquema de validación para crear/modificar un tema
 const createThemeSchema = z.object({
+    userId: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+    isDefault: z.boolean().optional(),
+    createdAt: z.date().optional(),
+    updatedAt: z.date().optional(),
     meta: z.object({
         name: z.string(),
         description: z.string().optional(),
         isDefault: z.boolean().optional(),
         createdAt: z.date().optional(),
         updatedAt: z.date().optional()
-    }),
+    }).optional(),
     mode: z.string(),
     palette: z.object({
         primary: z.string(),

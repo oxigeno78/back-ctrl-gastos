@@ -5,7 +5,7 @@ import { createUserTheme, getUserThemes, getThemeById, updateUserTheme } from ".
 const router = Router();
 
 router.get('/', authenticateToken, getUserThemes);
-router.get('/theme/:_id', authenticateToken, getThemeById);
+router.get('/:_id', authenticateToken, getThemeById);
 router.post('/theme', authenticateToken, createUserTheme);
 router.put('/theme/:_id', authenticateToken, updateUserTheme);
 
